@@ -908,3 +908,169 @@ export function rippleShiftAllTracks(collections = {}, fromTimelineTime = 0, del
   shiftList(collections.issues);
   return collections;
 }
+
+export function placedMainClips(packed = [], offsets = {}, globalOffset = 0) {
+  const extra = Number(globalOffset || 0);
+  return (packed || [])
+    .map((clip) => {
+      const offset = Number(offsets?.[clip.id] || 0) + extra;
+      return {
+        ...clip,
+        start: Math.max(0, Number(clip.start || 0) + offset),
+        end: Math.max(0, Number(clip.end || 0) + offset),
+      };
+    })
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+}
+
+export function closeTimelineGap(placed = [], gap = null) {
+  const length = Number(gap?.duration || 0);
+  if (length <= 0.001) return (placed || []).map((clip) => ({ ...clip }));
+  const holeEnd = Number(gap.end);
+  return (placed || []).map((clip) => {
+    if (Number(clip.start || 0) < holeEnd - 0.002) return { ...clip };
+    const shifted = {
+      ...clip,
+      start: Math.max(0, Number(clip.start || 0) - length),
+      end: Math.max(0.04, Number(clip.end || 0) - length),
+    };
+    if (!Array.isArray(clip.words)) return shifted;
+    shifted.words = clip.words.map((word) => ({
+      ...word,
+      start: Math.max(0, Number(word.start || 0) - length),
+      end: Math.max(0.01, Number(word.end || 0) - length),
+    }));
+    return shifted;
+  });
+}
+
+export function offsetsFromPlaced(packed = [], placed = [], globalOffset = 0) {
+  const offsets = {};
+  const extra = Number(globalOffset || 0);
+  for (const next of packed || []) {
+    const match =
+      (placed || []).find((item) => item.id === next.id) || matchClipBySource(next, placed);
+    if (!match) continue;
+    const offset = Number(match.start || 0) - Number(next.start || 0) - extra;
+    if (Math.abs(offset) > 0.001) offsets[next.id] = offset;
+  }
+  return offsets;
+}
+
+export function clipsOverlapOnTrack(left, right, epsilon = 0.002) {
+  const a0 = Number(left?.start || 0);
+  const a1 = Math.max(a0, Number(left?.end || 0));
+  const b0 = Number(right?.start || 0);
+  const b1 = Math.max(b0, Number(right?.end || 0));
+  return a0 < b1 - epsilon && b0 < a1 - epsilon;
+}
+
+function sourceAtTimeline(clip, timeline) {
+  const start = Number(clip.start || 0);
+  const end = Math.max(start, Number(clip.end || start));
+  const srcStart = Number(clip.sourceStart ?? start);
+  const srcEnd = Number(clip.sourceEnd ?? end);
+  const duration = end - start;
+  if (duration <= 1e-9) return srcStart;
+  const ratio = (Number(timeline) - start) / duration;
+  return srcStart + ratio * (srcEnd - srcStart);
+}
+
+export function overwriteOverlappingClips(clips = [], movingId = "") {
+  const moving = (clips || []).find((clip) => clip.id === movingId);
+  if (!moving) return (clips || []).map((clip) => ({ ...clip }));
+  const mStart = Number(moving.start || 0);
+  const mEnd = Math.max(mStart, Number(moving.end || 0));
+  const result = [];
+  for (const clip of clips || []) {
+    if (clip.id === movingId) {
+      result.push({ ...clip });
+      continue;
+    }
+    const start = Number(clip.start || 0);
+    const end = Math.max(start, Number(clip.end || 0));
+    if (end <= mStart + 0.002 || start >= mEnd - 0.002) {
+      result.push({ ...clip });
+      continue;
+    }
+    if (start >= mStart - 0.002 && end <= mEnd + 0.002) continue;
+    if (start < mStart - 0.002) {
+      result.push({
+        ...clip,
+        end: mStart,
+        sourceEnd: sourceAtTimeline(clip, mStart),
+      });
+    }
+    if (end > mEnd + 0.002) {
+      result.push({
+        ...clip,
+        id: start < mStart - 0.002 ? `${clip.id}__tail` : clip.id,
+        start: mEnd,
+        sourceStart: sourceAtTimeline(clip, mEnd),
+      });
+    }
+  }
+  return result.sort((left, right) => left.start - right.start || left.end - right.end);
+}
+
+export function rebuildTimelineFromPlaced(placed = [], sourceDuration = 0, speed = 1) {
+  const clips = (placed || [])
+    .filter((clip) => Number(clip.end || 0) > Number(clip.start || 0) + 0.002)
+    .map((clip) => ({
+      ...clip,
+      sourceStart: Number(clip.sourceStart ?? clip.start ?? 0),
+      sourceEnd: Number(clip.sourceEnd ?? clip.end ?? 0),
+    }))
+    .sort((left, right) => left.sourceStart - right.sourceStart || left.start - right.start);
+  const duration = Math.max(0, Number(sourceDuration || 0));
+  const occupied = clips
+    .map((clip) => ({
+      start: Math.max(0, Number(clip.sourceStart || 0)),
+      end: Math.max(0, Number(clip.sourceEnd || 0)),
+    }))
+    .filter((span) => span.end > span.start + 0.002)
+    .sort((left, right) => left.start - right.start);
+  const removals = [];
+  let cursor = 0;
+  for (const span of occupied) {
+    if (span.start > cursor + 0.002)
+      removals.push({ start: cursor, end: span.start, source: "overwrite" });
+    cursor = Math.max(cursor, span.end);
+  }
+  if (duration > 0 && cursor < duration - 0.002)
+    removals.push({ start: cursor, end: duration, source: "overwrite" });
+  const manualCuts = [
+    ...new Set(
+      clips.flatMap((clip) => [Number(clip.sourceStart || 0), Number(clip.sourceEnd || 0)]),
+    ),
+  ]
+    .filter((cut) => cut > 0.002 && (duration <= 0 || cut < duration - 0.002))
+    .sort((left, right) => left - right);
+  const packed = buildPackedMainClips(removals, manualCuts, duration || cursor, speed);
+  return {
+    removals: normalizeRemovalsList(removals),
+    manualCuts,
+    packed,
+    offsets: offsetsFromPlaced(packed, clips),
+  };
+}
+
+export function playheadOverlayX(time, zoom, scrollLeft = 0) {
+  return Number(time || 0) * Number(zoom || 0) - Number(scrollLeft || 0);
+}
+
+export function playheadAnchoredScrollLeft({
+  oldZoom,
+  newZoom,
+  playheadTime,
+  scrollLeft,
+  viewWidth,
+} = {}) {
+  const oldZ = Math.max(1e-6, Number(oldZoom) || 1);
+  const newZ = Math.max(1e-6, Number(newZoom) || oldZ);
+  const time = Number(playheadTime || 0);
+  const view = Math.max(1, Number(viewWidth) || 1);
+  const oldScreenX = playheadOverlayX(time, oldZ, scrollLeft);
+  const anchorX = oldScreenX >= 0 && oldScreenX <= view ? oldScreenX : view / 2;
+  return Math.max(0, playheadOverlayX(time, newZ, 0) - anchorX);
+}

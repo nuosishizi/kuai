@@ -180,13 +180,25 @@ test("export hardware can be re-probed and reports the verified encoder", () => 
 
 test("timeline zoom stays anchored to the playhead or pointer", () => {
   assert.match(ui, /function setTimelineZoomAroundPlayhead\(nextZoom, pointerClientX = null\)/);
-  assert.match(ui, /playheadTime \* state\.zoom - anchorX/);
-  assert.match(ui, /setTimelineZoomAroundPlayhead\([\s\S]*?e\.clientX/);
+  assert.match(ui, /playheadAnchoredScrollLeft\(/);
+  assert.match(ui, /function scaleTimelineClipGeometry\(/);
   assert.match(ui, /scheduleTimelineZoomCommit\(\)/);
   assert.match(ui, /timelineZoom"\)\.oninput[\s\S]*?setTimelineZoomAroundPlayhead/);
   assert.match(ui, /id="zoomToFitTimeline"/);
   assert.match(ui, /function zoomToFitTimeline\(\)/);
   assert.match(ui, /clamp\(Number\(nextZoom\) \|\| oldZoom, 1, 300\)/);
+  assert.match(ui, /e\.altKey && inTimeline/);
+  assert.match(ui, /\.playhead \{[\s\S]*?background: #e54b4b/);
+});
+
+test("ripple gap close and same-track overwrite follow DaVinci", () => {
+  assert.match(ui, /function closeTimelineGap\(/);
+  assert.match(ui, /function offsetsFromPlaced\(/);
+  assert.match(ui, /function overwriteOverlappingClips\(/);
+  assert.match(ui, /function rebuildTimelineFromPlaced\(/);
+  assert.match(ui, /function rippleDeleteTimelineGap\(trackId, gap\) \{[\s\S]*?closeTimelineGap\(/);
+  assert.match(ui, /function applyMainTrackOverwrite\([\s\S]*?overwriteOverlappingClips\(/);
+  assert.match(ui, /mainTrackMove && timelineDrag\.horizontalMoved[\s\S]*?applyMainTrackOverwrite\(/);
 });
 
 test("timeline follows the playhead, stacks overlaps, and keeps clip names visible", () => {

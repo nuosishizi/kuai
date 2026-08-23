@@ -88,3 +88,18 @@
 4. 严禁破坏 ASS 贝塞尔圆角绘图与音频 `concat` 导出图架构；
 5. 严禁对 AutoSubs 母版写 Element 5 当整句底（输入不存在）。Fill 高亮时必须在 ApplyWordTiming 之后把 Element 4 收成 Border Fill + Level Text。
 
+---
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical roles map 1:1 to tracker labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+

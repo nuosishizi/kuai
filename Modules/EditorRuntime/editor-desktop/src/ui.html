@@ -2823,23 +2823,7 @@
           rgba(255, 255, 255, 0.025) 9px
         );
       }
-      .trackend {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #ffb44a;
-        z-index: 35;
-        pointer-events: none;
-      }
-      .trackend:after {
-        content: "结束";
-        position: absolute;
-        top: 2px;
-        right: 4px;
-        color: #ffb44a;
-        font-size: 9px;
-      }
+
       .tracklabel.drop-before {
         box-shadow: inset 0 2px var(--blue);
       }
@@ -3375,7 +3359,23 @@
       .tick.micro { height: 5px; border-left-color: #38393e; }
       .scroll, .timeline-main { background: var(--timeline-lane); }
       .timeline-main { overflow: hidden; }
-      .timeline-main .scroll { overflow-x: auto; overflow-y: hidden !important; scrollbar-gutter: auto; overscroll-behavior-x: contain; }
+      .timeline-main .scroll {
+        overflow-x: auto;
+        overflow-y: auto !important;
+        scrollbar-gutter: auto;
+        overscroll-behavior-x: contain;
+      }
+      .timeline-main .scroll::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .timeline-main .scroll::-webkit-scrollbar-thumb {
+        background: #3e4046;
+        border-radius: 3px;
+      }
+      .timeline-main .scroll::-webkit-scrollbar-thumb:hover {
+        background: #565860;
+      }
       .timelinecontent { min-height: 100%; height: max-content; background-color: var(--timeline-lane); }
       .tracklabels { background: #1d1e22; }
       .tracklabel, .trackrow { min-height: 40px; border-bottom: 1px solid #15161a; box-shadow: inset 0 -1px #35363b; }
@@ -4708,7 +4708,7 @@
           </div>
         </div>
       </section>
-      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.51</footer>
+      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.52</footer>
     </div>
     <div class="context-menu" id="contextMenu"></div>
     <div class="dropveil" id="dropVeil">
@@ -5371,7 +5371,7 @@
         filterLook: { id: "none", intensity: 1, baseColor: null },
         lut: null,
         exportJobId: "",
-        layout: { side: 310, inspector: 300, timeline: 270, trackLabel: 132 },
+        layout: { side: 310, inspector: 300, timeline: 350, trackLabel: 180 },
       };
       const captionStyleDefaults = Object.freeze({ ...state.captionStyle });
       function normalizeCaptionLineMode(value) {
@@ -5562,13 +5562,46 @@
           deletable: true,
         };
       }
+      function nextTrackNumber(kind) {
+        const isVideoLike = (k) => ["video", "image", "text"].includes(k);
+        if (isVideoLike(kind)) {
+          let count = 1;
+          for (const tid of state.trackOrder || []) {
+            if (tid === "video") continue;
+            const info = state.trackDefinitions?.[tid];
+            if (info && isVideoLike(info.kind)) count++;
+          }
+          return count + 1;
+        }
+        if (kind === "audio") {
+          let count = 1;
+          for (const tid of state.trackOrder || []) {
+            if (tid === "audio") continue;
+            const info = state.trackDefinitions?.[tid];
+            if (info && info.kind === "audio") count++;
+          }
+          return count + 1;
+        }
+        if (kind === "caption") {
+          let count = 1;
+          for (const tid of state.trackOrder || []) {
+            if (tid === "caption") continue;
+            const info = state.trackDefinitions?.[tid];
+            if (info && info.kind === "caption") count++;
+          }
+          return count + 1;
+        }
+        return 2;
+      }
       function createDynamicTrack(kind, label = "", before = "video") {
         const id = `${kind}-${uid()}`;
+        const num = nextTrackNumber(kind);
+        const standardLabel = kind === "audio" ? `音频 ${num}` : kind === "caption" ? `字幕 ${num}` : `视频 ${num}`;
         state.trackDefinitions[id] = {
           id,
           kind,
-          label: label || `${trackMeta[kind]?.label || "素材"}轨道`,
-          className: trackMeta[kind]?.className || kind,
+          label: standardLabel,
+          className: trackMeta[kind]?.className || (kind === "image" || kind === "text" ? "video" : kind),
           color: trackMeta[kind]?.color || "#78818d",
           deletable: true,
         };
@@ -6145,7 +6178,7 @@
           colorBypass: false,
           beautyBypass: false,
           exportJobId: "",
-          layout: { side: 310, inspector: 300, timeline: 270, trackLabel: 132 },
+          layout: { side: 310, inspector: 300, timeline: 350, trackLabel: 180 },
         });
         $("video").removeAttribute("src");
         $("video").load?.();
@@ -8709,9 +8742,15 @@
           "--inspector",
           `${layout.inspector}px`,
         );
+        const totalTrackHeight = (state.trackOrder || []).reduce(
+          (acc, key) => acc + Math.max(40, Number(state.trackHeights?.[key] || 56)),
+          0,
+        );
+        const minTimelineH = Math.max(280, totalTrackHeight + 96);
+        const timelineTarget = Math.max(minTimelineH, Number(layout.timeline || 350));
         document.documentElement.style.setProperty(
           "--timeline",
-          `${clamp(Number(layout.timeline || 270), 180, Math.max(220, innerHeight - 250))}px`,
+          `${clamp(timelineTarget, 220, Math.max(minTimelineH, innerHeight - 160))}px`,
         );
         document.documentElement.style.setProperty(
           "--track-label-width",
@@ -8752,8 +8791,14 @@
           state.layout.side = layoutDrag.value + deltaX;
         if (layoutDrag.kind === "inspector")
           state.layout.inspector = layoutDrag.value - deltaX;
-        if (layoutDrag.kind === "timeline")
-          state.layout.timeline = clamp(layoutDrag.value - deltaY, 180, innerHeight - 250);
+        if (layoutDrag.kind === "timeline") {
+          const totalTrackHeight = (state.trackOrder || []).reduce(
+            (acc, key) => acc + Math.max(40, Number(state.trackHeights?.[key] || 56)),
+            0,
+          );
+          const minH = Math.max(280, totalTrackHeight + 96);
+          state.layout.timeline = clamp(layoutDrag.value - deltaY, minH, Math.max(minH, innerHeight - 160));
+        }
         if (layoutDrag.kind === "trackLabel")
           state.layout.trackLabel = clamp(layoutDrag.value + deltaX, 92, 360);
         if (!layoutDrag.framePending)
@@ -9108,7 +9153,7 @@
               preferredTrackId !== "video";
             const trackId = canUsePreferred
               ? preferredTrackId
-              : createDynamicTrack("video", asset.name || "叠加视频", "video");
+              : createDynamicTrack("video", "", "video");
             const start = clamp(Number(at) || 0, 0, visibleTimelineDuration());
             const sourceDuration = Math.max(0.04, Number(asset.duration || 3));
             const linkGroupId = uid();
@@ -9229,7 +9274,7 @@
           const trackId =
             preferredTrackId && trackInfo(preferredTrackId).kind === "image"
               ? preferredTrackId
-              : createDynamicTrack("image", asset.name || "图片", "video");
+              : createDynamicTrack("image", "", "video");
           const item = {
             id: uid(),
             trackId,
@@ -9293,7 +9338,7 @@
               trackInfo(preferredTrackId).kind === "audio" &&
               preferredTrackId !== "audio"
                 ? preferredTrackId
-                : createDynamicTrack("audio", asset.name || "音频", "audio"),
+                : createDynamicTrack("audio", "", "audio"),
             item = {
               id: uid(),
               trackId,
@@ -9355,7 +9400,7 @@
             trackInfo(preferredTrackId).kind === "caption" &&
             preferredTrackId !== "caption"
               ? preferredTrackId
-              : createDynamicTrack("caption", asset.name || "字幕文件", "caption");
+              : createDynamicTrack("caption", "", "caption");
           const offset = (Number(at) || 0) - parsed[0].start;
           for (const caption of parsed) {
             const start = Math.max(0, caption.start + offset),
@@ -9423,7 +9468,7 @@
         snapshot();
         const item = {
           id: uid(),
-          trackId: createDynamicTrack("text", "文字", "video"),
+          trackId: createDynamicTrack("text", "", "video"),
           text: "输入标题文字",
           start: state.currentTime,
           end: state.currentTime + 3,
@@ -10775,7 +10820,6 @@
           html += `<span class="marker ${issue.type}" data-issue="${issue.id}" title="${issue.label}" style="left:${issue.start * state.zoom}px"></span>`;
         for (const marker of state.timelineMarkers || [])
           html += `<span class="marker timeline-marker" data-timeline-marker="${escapeHtml(marker.id)}" title="${escapeHtml(marker.label || '时间线标记')} ${formatTimecode(Number(marker.time || 0))}" style="left:${Number(marker.time) * state.zoom}px"></span>`;
-        html += `<span class="trackend" style="left:${state.duration * state.zoom}px"></span>`;
         ruler.innerHTML = html;
         syncTimelineChrome();
       }
@@ -10784,13 +10828,19 @@
         if (key === "caption") return "字幕";
         if (key === "video") return "视频 1";
         if (key === "audio") return "音频 1";
-        const customVideos = (state.dynamicTracks || []).filter((t) => t.kind === "video");
-        const vIdx = customVideos.findIndex((t) => t.id === key);
-        if (vIdx !== -1) return `视频 ${vIdx + 2}`;
-        const customAudios = (state.dynamicTracks || []).filter((t) => t.kind === "audio");
-        const aIdx = customAudios.findIndex((t) => t.id === key);
-        if (aIdx !== -1) return `音频 ${aIdx + 2}`;
-        return meta.label || "轨道";
+        if (meta?.label) return meta.label;
+        const isVideoLike = ["video", "image", "text"].includes(meta?.kind || String(key).split("-")[0]);
+        if (isVideoLike) {
+          const videoTracks = (state.trackOrder || []).filter((id) => id === "video" || ["video", "image", "text"].includes(state.trackDefinitions?.[id]?.kind));
+          const idx = videoTracks.indexOf(key);
+          return idx >= 0 ? `视频 ${idx + 1}` : "视频";
+        }
+        if (meta?.kind === "audio" || String(key).startsWith("audio-")) {
+          const audioTracks = (state.trackOrder || []).filter((id) => id === "audio" || state.trackDefinitions?.[id]?.kind === "audio");
+          const idx = audioTracks.indexOf(key);
+          return idx >= 0 ? `音频 ${idx + 1}` : "音频";
+        }
+        return meta?.label || "轨道";
       }
       function trackClipCountText(key) {
         let count = 0;
@@ -10931,7 +10981,7 @@
                     `<div class="clip audiomute" title="静音区域" style="${clipGeometryStyle(range)}"></div>`,
                 )
                 .join("") +
-              `<canvas class="wavecanvas" data-main-wave-track="audio" style="position:absolute;inset:0;z-index:3;pointer-events:none"></canvas>`;
+              `<canvas class="wavecanvas" data-main-wave-track="audio" style="position:absolute;inset:0;z-index:25;pointer-events:none"></canvas>`;
           else if (info.kind === "video") {
             const mapped = mainClips()
               .filter((clip) => state.mainVideoTrackMap?.[clip.id] === key)
@@ -10949,7 +10999,7 @@
             html = mapped + state.audioAssets
               .filter((clip) => clip.trackId === key)
               .map((clip) => audioClipHtml(clip, "audioasset", key))
-              .join("") + `<canvas class="wavecanvas" data-main-wave-track="${escapeHtml(key)}" style="position:absolute;inset:0;z-index:3;pointer-events:none"></canvas>`;
+              .join("") + `<canvas class="wavecanvas" data-main-wave-track="${escapeHtml(key)}" style="position:absolute;inset:0;z-index:25;pointer-events:none"></canvas>`;
           } else {
             const type = info.kind;
             const items = trackItems(key);
@@ -10969,7 +11019,7 @@
           const gapSelection = timelineGapSelection?.trackId === key
             ? `<span class="timeline-gap-selection" data-selected-gap style="left:${timelineGapSelection.start * state.zoom}px;width:${Math.max(2, timelineGapSelection.duration * state.zoom)}px"></span>`
             : "";
-          row.innerHTML = `${gapSelection}${html}<span class="trackend" style="left:${state.duration * state.zoom}px"></span>`;
+          row.innerHTML = `${gapSelection}${html}`;
           row.style.width = $("timelineContent").style.width;
           row.style.height = laneHeight;
           if (laneCount === 1 && configuredHeight > 34)
@@ -11026,8 +11076,6 @@
         }
         for (const clip of mainAudioClips())
           updateTimelineClipGeometry("audio", clip.id, clip);
-        for (const marker of $("timelineContent").querySelectorAll(".trackend"))
-          marker.style.left = `${state.duration * state.zoom}px`;
       }
       function applyMainTrackOverwrite(movingId, kind = "video") {
         if (!movingId) return;
@@ -11691,31 +11739,8 @@
           ctx.stroke();
         }
       }
-      function showTrimAudioDetail({ waveform, sourceDuration, sourceTime, delta = 0, mode = "修剪" } = {}) {
-        const panel = $("trimAudioDetail"), canvas = $("trimAudioCanvas");
-        if (!panel || !canvas || !Array.isArray(waveform) || !waveform.length) return;
-        panel.classList.add("on");
-        $("trimAudioMode").textContent = mode;
-        const frameDelta = Math.round(Number(delta || 0) * sourceFrameRate());
-        $("trimAudioValue").textContent = `${formatTimecode(sourceTime)} · ${frameDelta >= 0 ? "+" : ""}${frameDelta} 帧`;
-        const width = Math.max(1, canvas.clientWidth), height = Math.max(1, canvas.clientHeight), dpr = devicePixelRatio || 1;
-        canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
-        const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, width, height);
-        const duration = Math.max(.001, Number(sourceDuration || 0)), span = 5;
-        const stereo = (waveform[0]?.length || 0) >= 4, channels = stereo ? 2 : 1;
-        ctx.strokeStyle = "rgba(66,239,188,.96)"; ctx.lineWidth = 1;
-        for (let channel = 0; channel < channels; channel += 1) {
-          const band = height / channels, center = channel * band + band / 2, half = Math.max(2, band / 2 - 3);
-          ctx.beginPath();
-          for (let x = .5; x < width; x += 1) {
-            const time = Number(sourceTime || 0) + (x / width - .5) * span;
-            const next = time + span / width;
-            const [low, high] = waveformPeakRange(waveform, time / duration * waveform.length, next / duration * waveform.length, channel * 2);
-            ctx.moveTo(x, center - Math.sign(high) * Math.pow(Math.abs(high), .72) * half);
-            ctx.lineTo(x, center - Math.sign(low) * Math.pow(Math.abs(low), .72) * half);
-          }
-          ctx.stroke();
-        }
+      function showTrimAudioDetail() {
+        return; // 已按需求取消音频放大遮挡效果
       }
       function hideTrimAudioDetail() {
         $("trimAudioDetail")?.classList.remove("on");
@@ -17161,6 +17186,7 @@
         if (!trackHeightDrag || trackHeightDrag.pointer !== event.pointerId) return;
         trackHeightDrag.label?.classList.remove("resizing");
         trackHeightDrag = null;
+        applyLayout();
         renderTimeline();
         commitTimelineGesture();
       });

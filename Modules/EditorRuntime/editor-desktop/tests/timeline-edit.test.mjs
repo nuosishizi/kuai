@@ -36,6 +36,14 @@ import {
   collectMainMoveIds,
   rippleRecoverAdjacentRemoval,
   mainTrimSourceBounds,
+  placedMainClips,
+  closeTimelineGap,
+  offsetsFromPlaced,
+  overwriteOverlappingClips,
+  clipsOverlapOnTrack,
+  rebuildTimelineFromPlaced,
+  playheadOverlayX,
+  playheadAnchoredScrollLeft,
 } from "../src/timeline-edit.mjs";
 
 test("linked selection only follows the same-source A/V group", () => {
@@ -689,4 +697,103 @@ test("rippleShiftAllTracks shifts captions, words, issues and overlays seamlessl
   assert.equal(state.captions[0].words[1].start, 14.5);
   assert.equal(state.issues[0].start, 13.5);
   assert.equal(state.audioMutes[0].start, 13);
+});
+
+test("ripple-deleting a gap pulls later clips forward so they abut", () => {
+  const packed = buildPackedMainClips([], [5], 20);
+  const laterId = packed[1].id;
+  const offsets = { [laterId]: 3 };
+  const placed = placedMainClips(packed, offsets);
+  const gap = findTimelineGap(placed, 6.5);
+  assert.deepEqual(gap, { start: 5, end: 8, duration: 3 });
+  const closed = closeTimelineGap(placed, gap);
+  assert.equal(closed[0].start, 0);
+  assert.equal(closed[0].end, 5);
+  assert.equal(closed[1].start, 5);
+  assert.equal(closed[1].end, 20);
+  assert.equal(findTimelineGap(closed, 6.5), null);
+  const nextOffsets = offsetsFromPlaced(packed, closed);
+  const after = placedMainClips(packed, nextOffsets);
+  assert.ok(Math.abs(after[1].start - after[0].end) < 0.01, "later clip must slide into the hole");
+});
+
+test("DaVinci overwrite trims the clip underneath instead of stacking both", () => {
+  const clips = [
+    { id: "a", start: 0, end: 10, sourceStart: 0, sourceEnd: 10 },
+    { id: "b", start: 5, end: 15, sourceStart: 10, sourceEnd: 20 },
+  ];
+  assert.equal(clipsOverlapOnTrack(clips[0], clips[1]), true);
+  const overwritten = overwriteOverlappingClips(clips, "b");
+  assert.equal(overwritten.length, 2);
+  const a = overwritten.find((clip) => clip.id === "a");
+  const b = overwritten.find((clip) => clip.id === "b");
+  assert.ok(a);
+  assert.ok(b);
+  assert.ok(Math.abs(a.end - 5) < 0.01, "underneath clip must be trimmed to the overwrite edge");
+  assert.equal(b.start, 5);
+  assert.equal(b.end, 15);
+  assert.equal(clipsOverlapOnTrack(a, b), false);
+});
+
+test("DaVinci overwrite splits a clip that fully contains the dropped clip", () => {
+  const clips = [
+    { id: "a", start: 0, end: 20, sourceStart: 0, sourceEnd: 20 },
+    { id: "b", start: 6, end: 10, sourceStart: 30, sourceEnd: 34 },
+  ];
+  const overwritten = overwriteOverlappingClips(clips, "b");
+  assert.equal(overwritten.length, 3);
+  const heads = overwritten.filter((clip) => clip.id !== "b").sort((left, right) => left.start - right.start);
+  assert.ok(Math.abs(heads[0].end - 6) < 0.01);
+  assert.ok(Math.abs(heads[1].start - 10) < 0.01);
+  assert.equal(
+    overwritten.filter((clip) => clip.start < 10 && clip.end > 6 && clip.id !== "b").length,
+    0,
+    "the covered middle of A must not survive",
+  );
+});
+
+test("rebuild after overwrite packs remaining source without leaving both clips stacked", () => {
+  const placed = overwriteOverlappingClips(
+    [
+      { id: "a", start: 0, end: 10, sourceStart: 0, sourceEnd: 10 },
+      { id: "b", start: 5, end: 15, sourceStart: 10, sourceEnd: 20 },
+    ],
+    "b",
+  );
+  const rebuilt = rebuildTimelineFromPlaced(placed, 20);
+  const shown = placedMainClips(rebuilt.packed, rebuilt.offsets);
+  assert.equal(shown.length, 2);
+  assert.ok(Math.abs(shown[0].end - shown[1].start) < 0.02);
+  assert.equal(
+    shown.some((clip) => shown.some((other) => clip.id !== other.id && clipsOverlapOnTrack(clip, other))),
+    false,
+  );
+});
+
+test("DaVinci zoom keeps the playhead pinned on screen", () => {
+  const playheadTime = 12;
+  const oldZoom = 60;
+  const scrollLeft = 240;
+  const viewWidth = 900;
+  const before = playheadOverlayX(playheadTime, oldZoom, scrollLeft);
+  const nextScroll = playheadAnchoredScrollLeft({
+    oldZoom,
+    newZoom: 150,
+    playheadTime,
+    scrollLeft,
+    viewWidth,
+  });
+  const after = playheadOverlayX(playheadTime, 150, nextScroll);
+  assert.ok(Math.abs(before - after) < 0.51, "playhead screen X must not jump when zooming");
+  const zoomOut = playheadAnchoredScrollLeft({
+    oldZoom: 150,
+    newZoom: 40,
+    playheadTime,
+    scrollLeft: nextScroll,
+    viewWidth,
+  });
+  assert.ok(
+    Math.abs(playheadOverlayX(playheadTime, 40, zoomOut) - after) < 0.51,
+    "playhead stays pinned while zooming out",
+  );
 });
