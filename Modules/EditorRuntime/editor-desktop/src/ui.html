@@ -1542,19 +1542,20 @@
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 1px;
-        background: #fff;
+        width: 2px;
+        background: #e54b4b;
         z-index: 42;
         pointer-events: none;
+        box-shadow: 0 0 0 1px rgba(229, 75, 75, 0.18);
       }
       .playhead:before {
         content: "";
         position: absolute;
         top: 0;
-        left: -5px;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 8px solid white;
+        left: -6px;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 10px solid #e54b4b;
       }
       .snap-guide {
         position: absolute;
@@ -4517,7 +4518,7 @@
           </div>
         </div>
       </section>
-      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.47</footer>
+      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.48</footer>
     </div>
     <div class="context-menu" id="contextMenu"></div>
     <div class="dropveil" id="dropVeil">
@@ -5348,8 +5349,13 @@
         audio: { label: "音频", className: "audio", color: "#31c48d" },
       };
       function trackInfo(id) {
-        if (state.trackDefinitions?.[id]) return state.trackDefinitions[id];
+        // 内建轨道（video/audio/caption 等）始终使用 trackMeta，
+        // 防止 trackDefinitions 中缺少 kind 属性的条目覆盖
         if (trackMeta[id]) return { id, kind: id, ...trackMeta[id] };
+        if (state.trackDefinitions?.[id]) {
+          const def = state.trackDefinitions[id];
+          return def.kind ? def : { ...def, kind: def.type || String(id || "").split("-")[0] };
+        }
         const kind = String(id || "").split("-")[0];
         return {
           id,
@@ -6649,6 +6655,162 @@
         }
         return list;
       }
+      function placedMainClips(packed = [], offsets = {}, globalOffset = 0) {
+        const extra = Number(globalOffset || 0);
+        return (packed || [])
+          .map((clip) => {
+            const offset = Number(offsets?.[clip.id] || 0) + extra;
+            return {
+              ...clip,
+              start: Math.max(0, Number(clip.start || 0) + offset),
+              end: Math.max(0, Number(clip.end || 0) + offset),
+            };
+          })
+          .sort((left, right) => left.start - right.start || left.end - right.end);
+      }
+      function closeTimelineGap(placed = [], gap = null) {
+        const length = Number(gap?.duration || 0);
+        if (length <= 0.001) return (placed || []).map((clip) => ({ ...clip }));
+        const holeEnd = Number(gap.end);
+        return (placed || []).map((clip) => {
+          if (Number(clip.start || 0) < holeEnd - 0.002) return { ...clip };
+          const shifted = {
+            ...clip,
+            start: Math.max(0, Number(clip.start || 0) - length),
+            end: Math.max(0.04, Number(clip.end || 0) - length),
+          };
+          if (!Array.isArray(clip.words)) return shifted;
+          shifted.words = clip.words.map((word) => ({
+            ...word,
+            start: Math.max(0, Number(word.start || 0) - length),
+            end: Math.max(0.01, Number(word.end || 0) - length),
+          }));
+          return shifted;
+        });
+      }
+      function offsetsFromPlaced(packed = [], placed = [], globalOffset = 0) {
+        const offsets = {};
+        const extra = Number(globalOffset || 0);
+        for (const next of packed || []) {
+          const match =
+            (placed || []).find((item) => item.id === next.id) || matchClipBySource(next, placed);
+          if (!match) continue;
+          const offset = Number(match.start || 0) - Number(next.start || 0) - extra;
+          if (Math.abs(offset) > 0.001) offsets[next.id] = offset;
+        }
+        return offsets;
+      }
+      function clipsOverlapOnTrack(left, right, epsilon = 0.002) {
+        const a0 = Number(left?.start || 0);
+        const a1 = Math.max(a0, Number(left?.end || 0));
+        const b0 = Number(right?.start || 0);
+        const b1 = Math.max(b0, Number(right?.end || 0));
+        return a0 < b1 - epsilon && b0 < a1 - epsilon;
+      }
+      function sourceAtTimeline(clip, timeline) {
+        const start = Number(clip.start || 0);
+        const end = Math.max(start, Number(clip.end || start));
+        const srcStart = Number(clip.sourceStart ?? start);
+        const srcEnd = Number(clip.sourceEnd ?? end);
+        const duration = end - start;
+        if (duration <= 1e-9) return srcStart;
+        return srcStart + ((Number(timeline) - start) / duration) * (srcEnd - srcStart);
+      }
+      function overwriteOverlappingClips(clips = [], movingId = "") {
+        const moving = (clips || []).find((clip) => clip.id === movingId);
+        if (!moving) return (clips || []).map((clip) => ({ ...clip }));
+        const mStart = Number(moving.start || 0);
+        const mEnd = Math.max(mStart, Number(moving.end || 0));
+        const result = [];
+        for (const clip of clips || []) {
+          if (clip.id === movingId) {
+            result.push({ ...clip });
+            continue;
+          }
+          const start = Number(clip.start || 0);
+          const end = Math.max(start, Number(clip.end || 0));
+          if (end <= mStart + 0.002 || start >= mEnd - 0.002) {
+            result.push({ ...clip });
+            continue;
+          }
+          if (start >= mStart - 0.002 && end <= mEnd + 0.002) continue;
+          if (start < mStart - 0.002) {
+            result.push({
+              ...clip,
+              end: mStart,
+              sourceEnd: sourceAtTimeline(clip, mStart),
+            });
+          }
+          if (end > mEnd + 0.002) {
+            result.push({
+              ...clip,
+              id: start < mStart - 0.002 ? `${clip.id}__tail` : clip.id,
+              start: mEnd,
+              sourceStart: sourceAtTimeline(clip, mEnd),
+            });
+          }
+        }
+        return result.sort((left, right) => left.start - right.start || left.end - right.end);
+      }
+      function rebuildTimelineFromPlaced(placed = [], sourceDuration = 0, speed = 1) {
+        const clips = (placed || [])
+          .filter((clip) => Number(clip.end || 0) > Number(clip.start || 0) + 0.002)
+          .map((clip) => ({
+            ...clip,
+            sourceStart: Number(clip.sourceStart ?? clip.start ?? 0),
+            sourceEnd: Number(clip.sourceEnd ?? clip.end ?? 0),
+          }))
+          .sort((left, right) => left.sourceStart - right.sourceStart || left.start - right.start);
+        const duration = Math.max(0, Number(sourceDuration || 0));
+        const occupied = clips
+          .map((clip) => ({
+            start: Math.max(0, Number(clip.sourceStart || 0)),
+            end: Math.max(0, Number(clip.sourceEnd || 0)),
+          }))
+          .filter((span) => span.end > span.start + 0.002)
+          .sort((left, right) => left.start - right.start);
+        const removals = [];
+        let cursor = 0;
+        for (const span of occupied) {
+          if (span.start > cursor + 0.002)
+            removals.push({ start: cursor, end: span.start, source: "overwrite" });
+          cursor = Math.max(cursor, span.end);
+        }
+        if (duration > 0 && cursor < duration - 0.002)
+          removals.push({ start: cursor, end: duration, source: "overwrite" });
+        const manualCuts = [
+          ...new Set(
+            clips.flatMap((clip) => [Number(clip.sourceStart || 0), Number(clip.sourceEnd || 0)]),
+          ),
+        ]
+          .filter((cut) => cut > 0.002 && (duration <= 0 || cut < duration - 0.002))
+          .sort((left, right) => left - right);
+        const packed = buildPackedMainClips(removals, manualCuts, duration || cursor, speed);
+        return {
+          removals: normalizeRemovalsList(removals),
+          manualCuts,
+          packed,
+          offsets: offsetsFromPlaced(packed, clips),
+        };
+      }
+      function playheadOverlayX(time, zoom, scrollLeft = 0) {
+        return Number(time || 0) * Number(zoom || 0) - Number(scrollLeft || 0);
+      }
+      function playheadAnchoredScrollLeft({
+        oldZoom,
+        newZoom,
+        playheadTime,
+        scrollLeft,
+        viewWidth,
+      } = {}) {
+        const oldZ = Math.max(1e-6, Number(oldZoom) || 1);
+        const newZ = Math.max(1e-6, Number(newZoom) || oldZ);
+        const time = Number(playheadTime || 0);
+        const view = Math.max(1, Number(viewWidth) || 1);
+        const oldScreenX = playheadOverlayX(time, oldZ, scrollLeft);
+        const anchorX = oldScreenX >= 0 && oldScreenX <= view ? oldScreenX : view / 2;
+        return Math.max(0, playheadOverlayX(time, newZ, 0) - anchorX);
+      }
       function playheadInside(item, time, margin = 0.04) {
         const start = Number(item?.start || 0);
         const end = Number(item?.end || start);
@@ -6842,6 +7004,7 @@
         targetSource = 0,
         speed = 1,
         rippleFrom = 0,
+        rippleDelta = 0,
       } = {}) {
         const offsets = {};
         const rate = Math.max(0.05, Number(speed || 1));
@@ -6853,6 +7016,8 @@
               desired = Number(editedClip.start);
             else if (previous && Number(previous.start) < Number(rippleFrom) - 0.01)
               desired = Number(previous.start);
+            else if (previous && rippleDelta > 0.001)
+              desired = Number(previous.start) - rippleDelta;
             else desired = next.start + Number(globalOffset || 0);
           } else if (previous && editedClip && previous.id === editedClip.id) {
             if (edge === "end") desired = Number(editedClip.start);
@@ -10145,6 +10310,7 @@
         return current;
       }
       function rippleDeleteTimelineGap(trackId, gap) {
+        console.log("[rippleDeleteGap] trackId=", trackId, "gap=", gap ? `${gap.start.toFixed(3)}-${gap.end.toFixed(3)} dur=${gap.duration.toFixed(3)}` : "null", "locked=", isTrackLocked(trackId));
         if (!gap || gap.duration <= 0.002) return;
         if (isTrackLocked(trackId)) {
           toast("这个轨道已锁定，请先点击轨道前方的锁");
@@ -10152,59 +10318,66 @@
         }
         const length = Number(gap.duration);
         const info = trackInfo(trackId);
-        const videoClips = mainClips().filter((clip) =>
-          (trackId === "video" ? !state.mainVideoTrackMap?.[clip.id] : state.mainVideoTrackMap?.[clip.id] === trackId),
-        );
-        const audioClips = mainAudioClips().filter((clip) =>
-          (trackId === "audio" ? !state.mainAudioTrackMap?.[clip.id] : state.mainAudioTrackMap?.[clip.id] === trackId),
-        );
-        const affectedVideo = info.kind === "video"
-          ? videoClips.filter((clip) => clip.start >= gap.end - 0.002)
-          : [];
-        const affectedAudio = info.kind === "audio"
-          ? audioClips.filter((clip) => clip.start >= gap.end - 0.002)
-          : [];
         snapshot();
-        for (const clip of affectedVideo) {
-          state.mainVideoClipOffsets[clip.id] =
-            Number(state.mainVideoClipOffsets?.[clip.id] || 0) - length;
-          if (state.avLinked)
-            state.mainAudioClipOffsets[clip.id] =
-              Number(state.mainAudioClipOffsets?.[clip.id] || 0) - length;
-        }
-        for (const clip of affectedAudio) {
-          const id = clip.parentId || clip.id;
-          state.mainAudioClipOffsets[id] =
-            Number(state.mainAudioClipOffsets?.[id] || 0) - length;
-          if (state.avLinked)
-            state.mainVideoClipOffsets[id] =
-              Number(state.mainVideoClipOffsets?.[id] || 0) - length;
-        }
-        const closesMainGap = affectedVideo.length || affectedAudio.length;
-        if (closesMainGap && state.avLinked) {
-          shiftTracks(gap.start, length);
+        const closeMainKind = (kind) => {
+          const audioOnly = kind === "audio" && !state.avLinked;
+          const placed = audioOnly ? mainAudioClips() : mainClips();
+          const map = kind === "audio" ? state.mainAudioTrackMap : state.mainVideoTrackMap;
+          const onTrack = placed.filter((clip) =>
+            trackId === kind ? !map?.[clip.id] : map?.[clip.id] === trackId,
+          );
+          console.log("[closeMainKind]", kind, "placed=", placed.length, "onTrack=", onTrack.length, "map=", JSON.stringify(map));
+          console.log("[closeMainKind] gap=", gap.start.toFixed(3), "-", gap.end.toFixed(3), "dur=", gap.duration.toFixed(3));
+          if (onTrack.length) {
+            console.log("[closeMainKind] onTrack clips:", onTrack.map(c => `${c.id} [${c.start.toFixed(2)}-${c.end.toFixed(2)}]`));
+          }
+          if (!onTrack.length) return false;
+          const closedOnTrack = closeTimelineGap(onTrack, gap);
+          const allPlaced = placed.map(
+            (clip) => closedOnTrack.find((item) => item.id === clip.id) || clip,
+          );
+          const packed = audioOnly
+            ? buildPackedMainClips(
+                Array.isArray(state.mainAudioRemovals) ? state.mainAudioRemovals : state.removals,
+                Array.isArray(state.mainAudioManualCuts) ? state.mainAudioManualCuts : state.manualCuts,
+                state.sourceDuration,
+                state.audio.speed,
+              )
+            : baseMainClips();
+          console.log("[closeMainKind] packed=", packed.length, "globalOffset=", state.mainTimelineOffset);
+          console.log("[closeMainKind] closedOnTrack:", closedOnTrack.map(c => `${c.id} [${c.start.toFixed(2)}-${c.end.toFixed(2)}]`));
+          const nextOffsets = offsetsFromPlaced(packed, allPlaced);
+          console.log("[closeMainKind] nextOffsets=", JSON.stringify(nextOffsets));
+          console.log("[closeMainKind] prevOffsets=", JSON.stringify(audioOnly ? state.mainAudioClipOffsets : state.mainVideoClipOffsets));
+          if (audioOnly) state.mainAudioClipOffsets = nextOffsets;
+          else {
+            state.mainVideoClipOffsets = nextOffsets;
+            if (state.avLinked) state.mainAudioClipOffsets = { ...nextOffsets };
+          }
+          return true;
+        };
+        console.log("[rippleDeleteGap] info=", JSON.stringify(info), "info.kind=", info.kind, "branch=", (info.kind === "video" || info.kind === "audio") ? "MAIN" : "OVERLAY");
+        if (info.kind === "video" || info.kind === "audio") {
+          const result = closeMainKind(info.kind);
+          console.log("[rippleDeleteGap] closeMainKind returned=", result);
+          if (state.avLinked || trackId === "video" || trackId === "audio")
+            rippleShiftAllTracks(state, gap.end, -length);
         } else {
           const overlays =
-            info.kind === "video"
-              ? state.videoLayers
-              : info.kind === "audio"
-                ? state.audioAssets
-                : info.kind === "image"
-                  ? state.images
-                  : info.kind === "text"
-                    ? state.titles
-                    : info.kind === "caption"
-                      ? state.captions
-                      : trackId === "review"
-                        ? state.reviewCaptions
+            info.kind === "image"
+              ? state.images
+              : info.kind === "text"
+                ? state.titles
+                : info.kind === "caption"
+                  ? state.captions
+                  : trackId === "review"
+                    ? state.reviewCaptions
+                    : info.kind === "video"
+                      ? state.videoLayers
+                      : info.kind === "audio"
+                        ? state.audioAssets
                         : [];
-          const overlayType = info.kind === "video"
-            ? "videolayer"
-            : info.kind === "audio"
-              ? "audioasset"
-              : trackId === "review"
-                ? "review"
-                : info.kind;
+          const overlayType = trackId === "review" ? "review" : info.kind;
           rippleOverlayTrack(overlays, trackId, overlayType, gap.start, gap.end);
           if (trackId === "review")
             rippleOverlayTrack(state.issues, trackId, "review", gap.start, gap.end);
@@ -10467,6 +10640,51 @@
           updateTimelineClipGeometry("audio", clip.id, clip);
         for (const marker of $("timelineContent").querySelectorAll(".trackend"))
           marker.style.left = `${state.duration * state.zoom}px`;
+      }
+      function applyMainTrackOverwrite(movingId, kind = "video") {
+        if (!movingId) return;
+        const audioOnly = kind === "audio" && !state.avLinked;
+        const all = audioOnly ? mainAudioClips() : mainClips();
+        const map = kind === "audio" ? state.mainAudioTrackMap : state.mainVideoTrackMap;
+        const trackOf = (clip) =>
+          map?.[clip.parentId || clip.id] || kind;
+        const moving = all.find((clip) => clip.id === movingId || clip.parentId === movingId);
+        if (!moving) return;
+        const trackId = trackOf(moving);
+        const onTrack = all.filter((clip) => trackOf(clip) === trackId);
+        if (!onTrack.some((clip) => clip.id !== moving.id && clipsOverlapOnTrack(clip, moving)))
+          return;
+        const others = all.filter((clip) => trackOf(clip) !== trackId);
+        const overwritten = [...overwriteOverlappingClips(onTrack, moving.id), ...others];
+        const rebuilt = rebuildTimelineFromPlaced(
+          overwritten,
+          state.sourceDuration,
+          state.audio.speed,
+        );
+        if (audioOnly) {
+          state.mainAudioRemovals = rebuilt.removals;
+          state.mainAudioManualCuts = rebuilt.manualCuts;
+          state.mainAudioClipOffsets = rebuilt.offsets;
+        } else {
+          state.removals = rebuilt.removals;
+          state.manualCuts = rebuilt.manualCuts;
+          state.mainVideoClipOffsets = rebuilt.offsets;
+          if (state.avLinked) state.mainAudioClipOffsets = { ...rebuilt.offsets };
+          adoptClipMaps(all, rebuilt.packed);
+        }
+      }
+      function applyOverlayTrackOverwrite(type, obj) {
+        if (!obj || !["videolayer", "audioasset"].includes(type)) return;
+        const list = type === "videolayer" ? state.videoLayers : state.audioAssets;
+        const trackId = overlayTrackId(type, obj);
+        const onTrack = list.filter((item) => overlayTrackId(type, item) === trackId);
+        if (!onTrack.some((clip) => clip.id !== obj.id && clipsOverlapOnTrack(clip, obj))) return;
+        const rest = list.filter((item) => overlayTrackId(type, item) !== trackId);
+        const next = overwriteOverlappingClips(onTrack, obj.id).map((clip) =>
+          String(clip.id).includes("__tail") ? { ...clip, id: uid() } : clip,
+        );
+        if (type === "videolayer") state.videoLayers = [...rest, ...next];
+        else state.audioAssets = [...rest, ...next];
       }
       function updateVolumeGeometry(element, settings) {
         if (!element || !settings) return;
@@ -11902,6 +12120,7 @@
         keepPlayheadInView(state.playing ? "play" : "edge");
       }
       let playbackAnimationFrame = 0;
+      let gapPlayback = null;
       let sourceSeekGeneration = 0;
       function jumpPlaybackSource(fromSource) {
         const video = $("video");
@@ -11911,6 +12130,7 @@
         const token = ++sourceSeekGeneration;
         const resume = () => {
           if (token !== sourceSeekGeneration) return;
+          if (gapPlayback) return;
           if (state.playing && video.paused) video.play().catch(() => {});
         };
         video.addEventListener("seeked", resume, { once: true });
@@ -11922,17 +12142,72 @@
         const tick = () => {
           if (!state.playing) {
             playbackAnimationFrame = 0;
+            gapPlayback = null;
+            return;
+          }
+          // ── 间隙播放：video 已暂停，用墙钟推进时间线 ──
+          if (gapPlayback) {
+            const speed = Math.max(0.05, Number(state.playbackSpeed || 1));
+            const elapsed = (performance.now() - gapPlayback.startWall) / 1000 * speed;
+            const now = gapPlayback.startTimeline + elapsed;
+            if (now >= gapPlayback.gapEnd - 0.01) {
+              // 间隙结束，恢复视频播放
+              state.currentTime = gapPlayback.gapEnd;
+              gapPlayback = null;
+              const clips = mainClips();
+              const clip = clips.find(
+                (c) => state.currentTime >= c.start && state.currentTime < c.end + 0.01,
+              );
+              if (clip) {
+                const video = $("video");
+                video.currentTime = clip.sourceStart;
+                if (video.paused) video.play().catch(() => {});
+              }
+            } else {
+              state.currentTime = now;
+            }
+            if (state.currentTime >= state.duration - 0.03) {
+              state.playing = false;
+              $("video").pause();
+              $("play").textContent = "▶";
+              playbackAnimationFrame = 0;
+              gapPlayback = null;
+              return;
+            }
+            schedulePreviewRender(false);
+            syncPlayheadPosition();
+            $("timecode").textContent =
+              `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
+            keepPlayheadInView("play");
+            playbackAnimationFrame = requestAnimationFrame(tick);
             return;
           }
           const video = $("video");
           const source = Number(video.currentTime || 0);
           const live = video.seeking ? skipDeadSource(source) : jumpPlaybackSource(source);
           state.currentTime = mapSourceTime(live);
+          // ── 检测是否进入了间隙 ──
+          const clips = mainClips();
+          const inClip = clips.some(
+            (c) => state.currentTime >= c.start && state.currentTime < c.end + 0.01,
+          );
+          if (!inClip && state.currentTime < state.duration - 0.05) {
+            const nextClip = clips.find((c) => c.start > state.currentTime + 0.001);
+            if (nextClip) {
+              video.pause();
+              gapPlayback = {
+                gapEnd: nextClip.start,
+                startWall: performance.now(),
+                startTimeline: state.currentTime,
+              };
+            }
+          }
           if (state.currentTime >= state.duration - 0.03) {
             state.playing = false;
             video.pause();
             $("play").textContent = "▶";
             playbackAnimationFrame = 0;
+            gapPlayback = null;
             return;
           }
           schedulePreviewRender(false);
@@ -11999,6 +12274,7 @@
         if (pauseVideo && state.playing) {
           $("video").pause();
           state.playing = false;
+          gapPlayback = null;
           $("play").textContent = "▶";
           syncPreviewAudio();
           renderPreviewObjects(false);
@@ -12076,6 +12352,7 @@
         if (state.playing) {
           $("video").pause();
           state.playing = false;
+          gapPlayback = null;
           syncPreviewAudio();
           renderPreviewObjects(false);
           $("play").textContent = "▶";
@@ -12083,15 +12360,21 @@
         }
         const playable = mainClips();
         if (state.currentTime >= state.duration - 0.03) seekTimeline(0);
-        if (!playable.some(
+        const inClipAtPlay = playable.some(
           (clip) => state.currentTime >= clip.start && state.currentTime < clip.end,
-        )) {
-          const next = playable.find((clip) => clip.end > state.currentTime);
-          if (next) seekTimeline(next.start);
+        );
+        if (!inClipAtPlay) {
+          // 播放头在间隙中 — 初始化间隙播放，不跳到下一个 clip
+          const next = playable.find((clip) => clip.start > state.currentTime + 0.001);
+          gapPlayback = {
+            gapEnd: next ? next.start : state.duration,
+            startWall: performance.now(),
+            startTimeline: state.currentTime,
+          };
         }
         state.playing = true;
         applyMediaPlaybackRate($("video"));
-        await $("video").play();
+        if (inClipAtPlay) await $("video").play();
         keepPlayheadInView("play");
         updateBeautyPreviewState();
         startPlaybackAnimationLoop();
@@ -12112,7 +12395,7 @@
         renderAll();
       };
       $("video").onseeked = () => {
-        if (state.playing && $("video").paused) $("video").play().catch(() => {});
+        if (state.playing && !gapPlayback && $("video").paused) $("video").play().catch(() => {});
         if (beautyIsActive() && !beautyFrameRequest)
           beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
       };
@@ -12121,7 +12404,7 @@
           beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
       };
       $("video").ontimeupdate = () => {
-        if (!state.playing || $("video").seeking) return;
+        if (!state.playing || $("video").seeking || gapPlayback) return;
         const source = Number($("video").currentTime || 0);
         if ((state.removals || []).some((range) => source >= range.start && source < range.end))
           return;
@@ -12790,6 +13073,7 @@
         cleanupEmptyDynamicTracks();
       }
       function deleteSelected(ripple = false) {
+        console.log("[deleteSelected] ripple=", ripple, "selected=", state.selected, "selectedItems=", JSON.stringify(state.selectedItems));
         if (ripple && timelineGapSelection) {
           const selectedGap = selectedTimelineGapAt(
             timelineGapSelection.trackId,
@@ -12831,6 +13115,8 @@
             (clip) => videoIds.has(clip.id) || (shouldRippleAudio && audioIds.has(clip.id)),
           )
           .sort((a, b) => b.start - a.start);
+        console.log("[deleteSelected] selectedMainClips=", selectedMainClips.length, selectedMainClips.map(c => `${c.id}[${c.sourceStart?.toFixed(2)}-${c.sourceEnd?.toFixed(2)}]`));
+        console.log("[deleteSelected] videoIds=", [...videoIds], "audioIds=", [...audioIds], "avLinked=", state.avLinked);
         const rippleClips = selectedMainClips;
         const overlayHoles = selected
           .filter((item) => !["video", "audio"].includes(item.type))
@@ -12907,17 +13193,26 @@
             (min, clip) => Math.min(min, Number(clip.start || 0)),
             Infinity,
           );
+          const rippleDelta = ripple ? selectedMainClips.reduce(
+            (sum, clip) => sum + (Number(clip.end) - Number(clip.start)),
+            0,
+          ) : 0;
           const offsets = rebuildClipOffsets({
             snapshot: sourceClips,
             packed,
             globalOffset: Math.max(0, Number(state.mainTimelineOffset || 0)),
             mode: ripple ? "ripple" : "trim",
             rippleFrom,
+            rippleDelta,
           });
           state.mainVideoClipOffsets = offsets;
           state.mainAudioClipOffsets = { ...offsets };
           adoptClipMaps(sourceClips, packed);
-          if (!mainClips().length) clearOrPromoteMainVideo();
+          console.log("[deleteSelected] after rebuild: packed=", packed.length, "mainClips=", mainClips().length, "offsets=", JSON.stringify(offsets));
+          if (!mainClips().length) {
+            console.warn("[deleteSelected] ⚠️ mainClips().length === 0 → clearOrPromoteMainVideo triggered! removals=", JSON.stringify(state.removals), "sourceDuration=", state.sourceDuration);
+            clearOrPromoteMainVideo();
+          }
         }
         cleanupEmptyDynamicTracks();
         recomputeContentDuration();
@@ -16355,7 +16650,9 @@
           visibleTimelineDuration(),
         );
         const trackId = row?.dataset.trackKey || "";
-        const gap = trackId ? selectedTimelineGapAt(trackId, clickTime) : null;
+        const gap = trackId
+          ? (selectedTimelineGapAt(trackId, clickTime) || findTimelineGap(timelineGapItems(trackId), clickTime))
+          : null;
         seekTimeline(clickTime);
         if (gap) {
           showContextMenu(event, [
@@ -16628,28 +16925,35 @@
         [state.width, state.height] = e.target.value.split("x").map(Number);
         updateFrameSize();
       };
+      function scaleTimelineClipGeometry(ratio) {
+        const content = $("timelineContent");
+        if (!content || !Number.isFinite(ratio) || Math.abs(ratio - 1) < 1e-6) return;
+        content.querySelectorAll(".clip, .timeline-gap-selection, .trackend, .audiomute").forEach((el) => {
+          const left = parseFloat(el.style.left);
+          if (Number.isFinite(left)) el.style.left = `${left * ratio}px`;
+          const width = parseFloat(el.style.width);
+          if (Number.isFinite(width)) el.style.width = `${width * ratio}px`;
+        });
+      }
       function setTimelineZoomAroundPlayhead(nextZoom, pointerClientX = null) {
-        const scroll = $("timelineScroll"),
-          oldZoom = Math.max(1, Number(state.zoom || 60)),
-          bounds = scroll.getBoundingClientRect(),
-          pointerInside = Number.isFinite(pointerClientX) && pointerClientX >= bounds.left && pointerClientX <= bounds.right,
-          playheadTime = pointerInside
-            ? clamp((scroll.scrollLeft + pointerClientX - bounds.left) / oldZoom, 0, visibleTimelineDuration())
-            : clamp(Number(state.currentTime || 0), 0, visibleTimelineDuration()),
-          oldScreenX = playheadTime * oldZoom - scroll.scrollLeft,
-          anchorX = pointerInside ? pointerClientX - bounds.left :
-            (oldScreenX >= 0 && oldScreenX <= scroll.clientWidth ? oldScreenX : scroll.clientWidth / 2);
+        const scroll = $("timelineScroll");
+        const oldZoom = Math.max(1, Number(state.zoom || 60));
+        const playheadTime = clamp(Number(state.currentTime || 0), 0, visibleTimelineDuration());
         state.zoom = clamp(Number(nextZoom) || oldZoom, 1, 300);
-        $("timelineZoom").value = state.zoom;
-        const ratio = state.zoom / oldZoom,
-          content = $("timelineContent"),
-          nextWidth = Math.max(scroll.clientWidth, visibleTimelineDuration() * state.zoom);
-        content.style.width = `${nextWidth}px`;
-        // Do not rewrite every subtitle/clip/tick while the slider is moving.
-        // A large caption project can contain thousands of nodes; touching all
-        // of them on every pointer event is the source of the multi-second UI
-        // stalls. The complete geometry is committed once after the gesture.
-        scroll.scrollLeft = Math.max(0, playheadTime * state.zoom - anchorX);
+        if ($("timelineZoom")) $("timelineZoom").value = state.zoom;
+        if (!scroll) return;
+        const content = $("timelineContent");
+        const nextWidth = Math.max(scroll.clientWidth, visibleTimelineDuration() * state.zoom);
+        if (content) content.style.width = `${nextWidth}px`;
+        scroll.scrollLeft = playheadAnchoredScrollLeft({
+          oldZoom,
+          newZoom: state.zoom,
+          playheadTime,
+          scrollLeft: scroll.scrollLeft,
+          viewWidth: scroll.clientWidth,
+        });
+        scaleTimelineClipGeometry(state.zoom / oldZoom);
+        renderRuler();
         syncTimelineChrome();
         scheduleTimelineZoomCommit();
       }
@@ -16808,6 +17112,7 @@
         syncPreviewAudio();
       });
       $("timelineContent").onpointerdown = (e) => {
+        if (e.button === 2) return; // 右键不启动拖拽/框选，由 contextmenu 处理
         const insertReview = e.target.closest("[data-insert-review]");
         if (insertReview) {
           if (isTrackLocked("review")) {
@@ -17629,6 +17934,12 @@
             cleanupEmptyDynamicTracks();
             renderAll();
           }
+          if (timelineDrag.moving?.length) {
+            for (const mover of timelineDrag.moving) {
+              if (Math.abs(Number(mover.obj?.start || 0) - Number(mover.originStart || 0)) > 0.002)
+                applyOverlayTrackOverwrite(mover.type, mover.obj);
+            }
+          }
           if (timelineDrag.mainTrackMove &&
               Math.abs(e.clientY - Number(timelineDrag.startY || e.clientY)) > 16) {
             const row = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".trackrow");
@@ -17656,6 +17967,12 @@
             }
             cleanupEmptyDynamicTracks();
             renderAll();
+          }
+          if (timelineDrag.mainTrackMove && timelineDrag.horizontalMoved) {
+            applyMainTrackOverwrite(
+              timelineDrag.mainTrackClip.parentId || timelineDrag.mainTrackClip.id,
+              timelineDrag.mainTrackType,
+            );
           }
           recomputeContentDuration();
           renderTimeline();
@@ -17898,13 +18215,17 @@
       window.addEventListener(
         "wheel",
         (e) => {
-          if (!(e.ctrlKey || e.metaKey)) return;
-          preventBrowserPageZoom(e);
-          if (eventInTimelineZoomArea(e.target)) {
-            setTimelineZoomAroundPlayhead(
-              state.zoom * (e.deltaY > 0 ? 0.88 : 1.14),
-              e.clientX,
-            );
+          const inTimeline = eventInTimelineZoomArea(e.target);
+          if (e.ctrlKey || e.metaKey) {
+            preventBrowserPageZoom(e);
+            if (inTimeline)
+              setTimelineZoomAroundPlayhead(state.zoom * (e.deltaY > 0 ? 0.88 : 1.14));
+            return;
+          }
+          if (e.altKey && inTimeline) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            setTimelineZoomAroundPlayhead(state.zoom * (e.deltaY > 0 ? 0.88 : 1.14));
           }
         },
         { passive: false, capture: true },
