@@ -3379,26 +3379,119 @@
       .timelinecontent { min-height: 100%; height: max-content; background-color: var(--timeline-lane); }
       .tracklabels { background: #1d1e22; }
       .tracklabel, .trackrow { min-height: 40px; border-bottom: 1px solid #15161a; box-shadow: inset 0 -1px #35363b; }
-      .tracklabel { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: 23px 25px; gap: 0 4px; padding: 4px 8px 3px 12px; color: #d0d1d4; background: #202126; }
-      .tracklabel .trackhandle { grid-column: 1; grid-row: 1; align-self: center; color: #777981; }
-      .tracklabel .dot { display: none; }
-      .tracklabel .ellipsis { grid-column: 2; grid-row: 1; align-self: end; font-size: 12px; font-weight: 600; }
-      .tracklabel .ellipsis::after { display: none; }
-      .track-controls { grid-column: 1 / 3; grid-row: 2; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
-      .tracklabel .track-controls button { display: inline-grid; place-items: center; width: 27px; min-width: 27px; height: 22px; padding: 0; color: #a4a6ac; background: #292a2f; border: 1px solid #3a3b41; border-radius: 3px; opacity: 1; font-size: 11px; }
-      .tracklabel .track-controls button:hover { color: #fff; background: #383a40; }
-      .tracklabel .track-controls .trackheight { font-size: 15px; line-height: 1; }
-      .tracklabel .track-controls .trackauto.on { color: #f5f7fa; background: #3e667e; border-color: #5792b5; }
-      .tracklabel .track-controls .trackmute.on { color: #1b1c20; background: #efb84d; border-color: #ffd073; font-weight: 800; }
-      .tracklabel .track-controls .trackdelete { color: #d98a8e; }
-      .tracklabel .track-controls .trackdelete:hover { color: #fff; background: #a13d43; }
-      .tracklabel .track-controls .trackdelete.disabled { color: #595b61; cursor: not-allowed; background: #24252a; }
+      .tracklabel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 4px 8px 3px 10px;
+        color: #d0d1d4;
+        background: #1f2024;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      .track-header-bar {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        min-height: 24px;
+        flex-shrink: 0;
+        width: 100%;
+      }
+      .tracklabel .trackhandle {
+        color: #62646a;
+        cursor: grab;
+        font-size: 13px;
+        user-select: none;
+        line-height: 1;
+      }
+      .tracklabel .trackhandle:hover { color: #e0e1e6; }
+      .track-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 20px;
+        padding: 0 6px;
+        background: #362225;
+        border: 1px solid #7c3138;
+        color: #ff9b9b;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 3px;
+        letter-spacing: 0.5px;
+        user-select: none;
+        flex-shrink: 0;
+      }
+      .tracklabel.audio .track-badge { background: #1f2b23; border-color: #2e6b3f; color: #8be5a3; }
+      .tracklabel.caption .track-badge { background: #2b202a; border-color: #6b2d66; color: #e79be0; }
+      .tracklabel.video .track-badge { background: #222c36; border-color: #365b75; color: #8fc7ed; }
+      .track-controls {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .track-controls button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 21px;
+        height: 20px;
+        padding: 0 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #8c8e94;
+        background: #27282d;
+        border: 1px solid #36373d;
+        border-radius: 3px;
+        cursor: pointer;
+        line-height: 1;
+        transition: all 0.1s ease;
+      }
+      .track-controls button:hover { color: #ffffff; background: #3a3b42; border-color: #4e5058; }
+      .track-controls .trackauto.on { color: #ffffff; background: #2b4960; border-color: #4a82a8; }
+      .track-controls .trackmute.on { color: #1a1b1e; background: #e6a835; border-color: #ffc457; font-weight: 800; }
+      .track-controls .tracksolo.on { color: #ffffff; background: #388e5a; border-color: #51ba7a; }
+      .track-controls .tracklock.on { color: #ffd073; background: #3e321e; border-color: #7a6032; }
+      .track-controls .trackdelete { color: #c97277; }
+      .track-controls .trackdelete:hover { color: #fff; background: #96353b; border-color: #c74b53; }
+      .track-controls .trackdelete.disabled { display: none; }
+      .track-controls .audio-channel-tag { font-size: 10px; color: #63656c; font-weight: 600; padding: 0 2px; user-select: none; }
+      .track-info-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        margin-top: 3px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .track-info-body .track-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #cfd0d4;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+      }
+      .track-info-body .track-clip-count {
+        font-size: 11px;
+        color: #71737a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+      }
       .tracklabel.audio { border-left: 3px solid #489d74; }
       .tracklabel.video { border-left: 3px solid #438fc0; }
       .tracklabel.image { border-left: 3px solid #6b8fbd; }
       .tracklabel.caption { border-left: 3px solid #b079a3; }
-      .track-resize-grip { position: absolute; left: 0; right: 0; bottom: -3px; height: 7px; z-index: 8; cursor: ns-resize; }
-      .track-resize-grip:hover, .tracklabel.resizing .track-resize-grip { background: rgba(82, 169, 221, .72); }
+      .tracklabel.review { border-left: 3px solid #8e3d43; }
+      .track-resize-grip { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; z-index: 10; cursor: ns-resize; }
+      .track-resize-grip:hover, .tracklabel.resizing .track-resize-grip { background: rgba(82, 169, 221, .85); }
       .clip { top: 3px; height: calc(var(--timeline-track-h) - 7px); padding: 5px 7px; border-radius: 2px; border: 1px solid #101113; box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); font-size: 11px; }
       .clip.video { background: #477da2; }
       .clip.audio { background: #408b68; }
@@ -4615,7 +4708,7 @@
           </div>
         </div>
       </section>
-      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.50</footer>
+      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.51</footer>
     </div>
     <div class="context-menu" id="contextMenu"></div>
     <div class="dropveil" id="dropVeil">
@@ -10686,6 +10779,28 @@
         ruler.innerHTML = html;
         syncTimelineChrome();
       }
+      function trackBadgeText(key, meta) {
+        if (key === "review") return "待处理";
+        if (key === "caption") return "字幕";
+        if (key === "video") return "视频 1";
+        if (key === "audio") return "音频 1";
+        const customVideos = (state.dynamicTracks || []).filter((t) => t.kind === "video");
+        const vIdx = customVideos.findIndex((t) => t.id === key);
+        if (vIdx !== -1) return `视频 ${vIdx + 2}`;
+        const customAudios = (state.dynamicTracks || []).filter((t) => t.kind === "audio");
+        const aIdx = customAudios.findIndex((t) => t.id === key);
+        if (aIdx !== -1) return `音频 ${aIdx + 2}`;
+        return meta.label || "轨道";
+      }
+      function trackClipCountText(key) {
+        let count = 0;
+        if (key === "review") count = (state.reviewCaptions || []).length;
+        else if (key === "caption") count = (state.captions || []).length;
+        else if (key === "video") count = mainClips().length;
+        else if (key === "audio") count = state.avLinked ? mainClips().length : mainAudioClips().length;
+        else count = (trackItems(key) || []).length;
+        return `${count} 个片段`;
+      }
       function renderTrackOrder() {
         const labels = $("trackLabels"),
           content = $("timelineContent"),
@@ -10700,14 +10815,16 @@
               muted = !!state.trackMute?.[key],
               audioTrack = meta.kind === "audio";
             const symbol =
-              key === "audio" ? (visible ? "🔊" : "🔇") : visible ? "◉" : "○";
+              key === "audio" ? (visible ? "🔊" : "🔇") : (visible ? "🎞" : "○");
             const remove = meta.deletable
               ? `<button class="trackdelete" data-delete-track="${key}" title="删除轨道">×</button>`
-              : `<button class="trackdelete disabled" disabled title="基础轨道不可删除">×</button>`;
+              : "";
+            const badge = trackBadgeText(key, meta);
+            const clipCount = trackClipCountText(key);
             const labelTitle = key === "review"
               ? "待处理片段：点击试听，Alt+点击替换为识别口播，Ctrl+点击保留，Shift+点击删除"
               : meta.label;
-            return `<div class="tracklabel ${meta.className}" draggable="true" data-track-key="${key}"><span class="trackhandle" title="拖动调整轨道顺序">⠿</span><span class="dot" style="background:${meta.color}"></span><span class="ellipsis" title="${escapeHtml(labelTitle)}">${escapeHtml(meta.label)}</span><div class="track-controls"><button class="trackheight" data-height-delta="-12" data-height-track="${key}" title="降低轨道高度">−</button><button class="trackheight" data-height-delta="12" data-height-track="${key}" title="增加轨道高度">＋</button><button class="trackauto ${autoSelected ? "on" : ""}" data-auto-track="${key}" title="自动轨道选择器：决定选择后方、全选等命令是否作用于此轨">⇥</button>${audioTrack ? `<button class="trackmute ${muted ? "on" : ""}" data-mute-track="${key}" title="静音此轨">M</button><button class="tracksolo ${soloed ? "on" : ""}" data-solo-track="${key}" title="独听此轨">S</button>` : `<button disabled title="此轨道没有静音功能">M</button><button disabled title="此轨道没有独听功能">S</button>`}<button class="tracklock ${locked ? "on" : ""}" data-lock-track="${key}" title="${locked ? "解锁轨道" : "锁定轨道"}">${locked ? "🔒" : "🔓"}</button><button class="visibility ${visible ? "" : "off"}" data-toggle-track="${key}" title="${visible ? "关闭轨道" : "显示轨道"}">${symbol}</button>${remove}</div><span class="track-resize-grip" data-resize-track="${key}" title="拖动调节轨道高度；双击恢复默认高度"></span></div>`;
+            return `<div class="tracklabel ${meta.className}" draggable="true" data-track-key="${key}"><div class="track-header-bar"><span class="trackhandle" title="拖动调整轨道顺序">⠿</span><span class="track-badge" title="${escapeHtml(labelTitle)}">${escapeHtml(badge)}</span><div class="track-controls"><button class="tracklock ${locked ? "on" : ""}" data-lock-track="${key}" title="${locked ? "解锁轨道" : "锁定轨道"}">${locked ? "🔒" : "🔓"}</button><button class="trackauto ${autoSelected ? "on" : ""}" data-auto-track="${key}" title="自动轨道选择器：决定选择后方、全选等命令是否作用于此轨">⇥</button>${audioTrack ? `<button class="tracksolo ${soloed ? "on" : ""}" data-solo-track="${key}" title="独听此轨">S</button><button class="trackmute ${muted ? "on" : ""}" data-mute-track="${key}" title="静音此轨">M</button><span class="audio-channel-tag">2.0</span>` : ""}<button class="visibility ${visible ? "" : "off"}" data-toggle-track="${key}" title="${visible ? "关闭轨道" : "显示轨道"}">${symbol}</button>${remove}</div></div><div class="track-info-body"><span class="track-title" title="${escapeHtml(labelTitle)}">${escapeHtml(meta.label)}</span><span class="track-clip-count">${clipCount}</span></div><span class="track-resize-grip" data-resize-track="${key}" title="按住拖动自由调节轨道高度；双击恢复默认高度"></span></div>`;
           })
           .join("");
         content.querySelectorAll(".trackrow[data-track-key]").forEach((row) => {
