@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ui = fs.readFileSync(path.join(root, "src/ui.html"), "utf8");
 const main = fs.readFileSync(path.join(root, "src/main.mjs"), "utf8");
-const media = fs.readFileSync(path.join(root, "src/media.mjs"), "utf8");
+const media = fs.existsSync(path.join(root, "src/media"))
+  ? fs.readdirSync(path.join(root, "src/media")).map(f => fs.readFileSync(path.join(root, "src/media", f), "utf8")).join("\n")
+  : fs.readFileSync(path.join(root, "src/media.mjs"), "utf8");
 const whisper = fs.readFileSync(path.join(root, "src/whisper.mjs"), "utf8");
 const whisperWorker = fs.readFileSync(
   path.join(root, "src/whisper-worker.mjs"),

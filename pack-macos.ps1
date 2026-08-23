@@ -6,8 +6,16 @@ $ErrorActionPreference = "Stop"
 try { chcp 65001 > $null } catch {}
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Version = "2.7.47"
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$PackageJsonPath = Join-Path $ProjectRoot "Modules/EditorRuntime/editor-desktop/package.json"
+$Version = if ($env:GITHUB_REF_NAME -match '^v?(\d+\.\d+\.\d+.*)') {
+  $Matches[1]
+} elseif (Test-Path $PackageJsonPath) {
+  (Get-Content $PackageJsonPath -Raw | ConvertFrom-Json).version
+} else {
+  "2.7.52"
+}
+
 $AppName = "QuickCut-macOS-$Version"
 $tempBase = [System.IO.Path]::GetTempPath()
 $StageRoot = if (Test-Path "D:\") { "D:\QuickCut-mac-pack" } else { Join-Path $tempBase "QuickCut-mac-pack" }
@@ -55,6 +63,12 @@ function Download-File([string]$Url, [string]$Destination) {
     Invoke-WebRequest -Uri $Url -OutFile $partial -UseBasicParsing
   }
   Move-Item -Force $partial $Destination
+}
+
+Info "Pre-building editor UI bundle..."
+$BuildScript = Join-Path $ProjectRoot "Modules/EditorRuntime/editor-desktop/src/ui/build.mjs"
+if (Test-Path $BuildScript) {
+  & node $BuildScript
 }
 
 # 1. Resolve Bun arm64
@@ -125,7 +139,9 @@ $BunDst = Join-Path $Stage "Modules/EditorRuntime/runtime"
 New-Item -ItemType Directory -Force -Path $EditorDst, $MediaDst, $BunDst | Out-Null
 Copy-Item (Join-Path $RuntimeSrc "editor-desktop/package.json") $EditorDst
 Copy-Item -Recurse (Join-Path $RuntimeSrc "editor-desktop/src") (Join-Path $EditorDst "src")
-Copy-Item -Recurse (Join-Path $RuntimeSrc "editor-desktop/assets") (Join-Path $EditorDst "assets")
+if (Test-Path (Join-Path $RuntimeSrc "editor-desktop/assets")) {
+  Copy-Item -Recurse (Join-Path $RuntimeSrc "editor-desktop/assets") (Join-Path $EditorDst "assets")
+}
 Copy-Item $Bun (Join-Path $BunDst "bun-arm64")
 Copy-Item $Ffmpeg (Join-Path $MediaDst "ffmpeg")
 Copy-Item $Ffprobe (Join-Path $MediaDst "ffprobe")
@@ -133,15 +149,23 @@ Copy-Item -Recurse -Force $MediaLib (Join-Path $MediaDst "lib")
 $Deepfilter = Join-Path $RuntimeSrc "media/deepfilter"
 if (Test-Path $Deepfilter) { Copy-Item $Deepfilter (Join-Path $MediaDst "deepfilter") }
 
-Copy-Item (Join-Path $ProjectRoot "启动快剪.command") (Join-Path $Stage "启动快剪.command")
-Copy-Item (Join-Path $ProjectRoot "一键生成APP.command") (Join-Path $Stage "一键生成APP.command")
+if (Test-Path (Join-Path $ProjectRoot "启动快剪.command")) {
+  Copy-Item (Join-Path $ProjectRoot "启动快剪.command") (Join-Path $Stage "启动快剪.command")
+}
+if (Test-Path (Join-Path $ProjectRoot "一键生成APP.command")) {
+  Copy-Item (Join-Path $ProjectRoot "一键生成APP.command") (Join-Path $Stage "一键生成APP.command")
+}
 $ScriptsSrc = Join-Path $ProjectRoot "scripts"
 if (Test-Path $ScriptsSrc) { Copy-Item -Recurse $ScriptsSrc (Join-Path $Stage "scripts") }
-Copy-Item -Recurse (Join-Path $ProjectRoot "QuickCut") (Join-Path $Stage "QuickCut")
-Copy-Item -Recurse (Join-Path $ProjectRoot "QuickCut.xcodeproj") (Join-Path $Stage "QuickCut.xcodeproj")
+if (Test-Path (Join-Path $ProjectRoot "QuickCut")) {
+  Copy-Item -Recurse (Join-Path $ProjectRoot "QuickCut") (Join-Path $Stage "QuickCut")
+}
+if (Test-Path (Join-Path $ProjectRoot "QuickCut.xcodeproj")) {
+  Copy-Item -Recurse (Join-Path $ProjectRoot "QuickCut.xcodeproj") (Join-Path $Stage "QuickCut.xcodeproj")
+}
 
 $Readme = @"
-快剪 QuickCut $Version  macOS 测试包
+快剪 QuickCut $Version  macOS 运行说明
 
 系统要求
 - Apple 芯片 Mac（M1 / M2 / M3 / M4）
@@ -149,32 +173,22 @@ $Readme = @"
 - 不需要安装 Node.js / FFmpeg
 - 做原生窗口 APP 才需要安装 Xcode
 
-普通测试（推荐）
+快速使用（推荐）
 1. 解压整个文件夹。
-2. 右键「启动快剪.command」→ 打开。
+2. 双击「启动快剪.command」即可打开。
 3. 若系统拦截：系统设置 → 隐私与安全性 → 仍要打开。
-4. 若提示没有执行权限，打开「终端」执行：
-   cd 到解压后的文件夹
-   chmod +x 启动快剪.command
-   xattr -cr .
-   然后再右键打开。
-5. 编辑器会在浏览器里打开。关掉终端窗口即退出。
+4. 编辑器会在独立浏览器应用中启动。关掉终端窗口即退出。
 
-做成桌面 APP
-- 这台 Mac 已安装完整 Xcode 时，双击「一键生成APP.command」。
-- 完成后桌面会有「快剪.app」，界面嵌在原生窗口里。
-
-测试建议
-- 新建工程，导入口播视频。
-- 字幕页粘贴正确文案，保存 Groq API Key 后再匹配。
-- 试剪停顿、高亮字幕、导出视频、导出达芬奇。
-- 达芬奇字幕请选 xml / ttml / dfxp，不要选 srt 或 ass。
+原生桌面 APP（安装包版）
+- 双击打开 DMG 安装包，将「快剪.app」拖入「Applications」文件夹。
+- 首次打开若提示“已损坏”，双击旁边的「首次打开如果提示已损坏点我.command」即可一键修复。
 
 说明
-- 工程数据在 ~/Library/Application Support/QuickCut。
-- 本包不含 API Key、工程和素材。
-- 仅供测试，版权归 HX。
+- 工程数据存储在 ~/Library/Application Support/QuickCut。
+- 本包不含任何第三方 API Key，也不包含素材文件。
 "@
+Set-Content -Path (Join-Path $Stage "使用说明.txt") -Value $Readme -Encoding UTF8
+
 # Build native macOS App and DMG if Xcode is available
 $xcodeCmd = Get-Command xcodebuild -ErrorAction SilentlyContinue
 $xcodebuild = if ($xcodeCmd) { $xcodeCmd.Source } else { $null }

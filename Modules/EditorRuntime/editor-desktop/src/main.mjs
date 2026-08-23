@@ -102,6 +102,14 @@ import {
 } from "./project-store.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
+let appVersion = "2.7.52";
+try {
+  const pkgPath = path.resolve(currentDir, "../package.json");
+  if (fs.existsSync(pkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    if (pkg.version) appVersion = pkg.version;
+  }
+} catch {}
 const rawHtml = fs.readFileSync(path.join(currentDir, "ui.html"), "utf8");
 const assets = new Map();
 let serverPort = 0;
@@ -405,7 +413,7 @@ function startAssetServer() {
       if (request.method === "GET" && requestUrl.pathname === "/health") {
         response.setHeader("Content-Type", "application/json");
         response.writeHead(200);
-        response.end(JSON.stringify({ ok: true, port: serverPort, version: "2.7.47" }));
+        response.end(JSON.stringify({ ok: true, port: serverPort, version: appVersion }));
         return;
       }
       if (request.method === "POST" && requestUrl.pathname.startsWith("/rpc/")) {
@@ -1330,7 +1338,7 @@ function smartFinishStartExport(input = {}) {
 nativeMethods = {
   ping: safe(() => ({
     ready: true,
-    version: "2.7.47",
+    version: appVersion,
     appName: "快剪 QuickCut",
   })),
   smartFinishAnalyze: safe((input = {}) => smartFinishAnalyze(input)),

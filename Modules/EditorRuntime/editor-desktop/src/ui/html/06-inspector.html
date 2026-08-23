@@ -1,0 +1,603 @@
+<aside class="inspector">
+          <nav class="tabs">
+            <button class="tab active" data-inspect="basic">属性</button
+            ><button class="tab" data-inspect="color">调色</button
+            ><button class="tab" data-inspect="filter">滤镜</button
+            ><button class="tab" data-inspect="beauty">美颜</button
+            ><button class="tab" data-inspect="audio">音频</button>
+            <button class="tab" data-inspect="animation">动画</button>
+          </nav>
+          <div class="inspectbody">
+            <div class="sidepage active" id="inspect-basic">
+              <div class="inspectsection">
+                <h3 id="selectionTitle">视频属性</h3>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>等比例缩放</span><output id="scaleOut">100%</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="objectScale"
+                    type="range"
+                    min="10"
+                    max="300"
+                    value="100"
+                  />
+                </div>
+                <div class="twocol field">
+                  <label
+                    ><span class="small">位置 X</span
+                    ><input
+                      class="input"
+                      id="objectX"
+                      type="number"
+                      value="0" /></label
+                  ><label
+                    ><span class="small">位置 Y</span
+                    ><input class="input" id="objectY" type="number" value="0"
+                  /></label>
+                </div>
+                <div class="field" id="visualProperties">
+                  <div class="fieldhead"><span>旋转</span><output id="rotationOut">0°</output></div>
+                  <input class="range" id="objectRotation" type="range" min="-180" max="180" step="1" value="0" data-default="0" />
+                  <div class="fieldhead" style="margin-top:10px"><span>不透明度</span><output id="opacityOut">100%</output></div>
+                  <input class="range" id="objectOpacity" type="range" min="0" max="100" step="1" value="100" data-default="100" />
+                  <label class="field"><span class="small">混合模式</span>
+                    <select class="select" id="objectBlendMode">
+                      <option value="normal">正常</option><option value="multiply">正片叠底</option>
+                      <option value="screen">滤色</option><option value="overlay">叠加</option>
+                      <option value="darken">变暗</option><option value="lighten">变亮</option>
+                      <option value="color-dodge">颜色减淡</option><option value="color-burn">颜色加深</option>
+                      <option value="hard-light">强光</option><option value="soft-light">柔光</option>
+                      <option value="difference">差值</option><option value="exclusion">排除</option>
+                    </select>
+                  </label>
+                  <div id="cropProperties" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-weight:600;font-size:13px;">画面裁剪</span>
+                      <button class="btn small" id="resetCropBtn" style="padding:2px 8px;font-size:11px;">重置裁剪</button>
+                    </div>
+                    <div class="field">
+                      <div class="fieldhead"><span>上裁剪</span><output id="cropTopOut">0%</output></div>
+                      <input class="range" id="cropTop" type="range" min="0" max="95" step="1" value="0" data-default="0" />
+                    </div>
+                    <div class="field">
+                      <div class="fieldhead"><span>下裁剪</span><output id="cropBottomOut">0%</output></div>
+                      <input class="range" id="cropBottom" type="range" min="0" max="95" step="1" value="0" data-default="0" />
+                    </div>
+                    <div class="field">
+                      <div class="fieldhead"><span>左裁剪</span><output id="cropLeftOut">0%</output></div>
+                      <input class="range" id="cropLeft" type="range" min="0" max="95" step="1" value="0" data-default="0" />
+                    </div>
+                    <div class="field">
+                      <div class="fieldhead"><span>右裁剪</span><output id="cropRightOut">0%</output></div>
+                      <input class="range" id="cropRight" type="range" min="0" max="95" step="1" value="0" data-default="0" />
+                    </div>
+                  </div>
+                </div>
+                <div class="row field">
+                  <button class="btn grow" id="fitObject">适应画布</button
+                  ><button class="btn grow" id="centerObject">居中</button>
+                </div>
+                <div class="status" id="multiTransformHint" style="display:none">
+                  已多选画面片段：缩放、位置、旋转、裁剪会同步应用到全部所选画面，可撤销。
+                </div>
+              </div>
+              <div id="textProperties">
+                <div class="inspectsection">
+                  <h3>文字</h3>
+                  <div class="field">
+                    <input
+                      class="input"
+                      id="objectText"
+                      placeholder="输入文字内容"
+                    />
+                  </div>
+                  <div class="twocol field">
+                    <label
+                      ><span class="small">字号</span
+                      ><input
+                        class="input"
+                        id="fontSize"
+                        type="number"
+                        min="8"
+                        max="300"
+                        value="54" /></label
+                    ><label
+                      ><span class="small">粗细</span
+                      ><select class="select" id="fontWeight">
+                        <option>400</option>
+                        <option>500</option>
+                        <option>600</option>
+                        <option selected>700</option>
+                        <option>800</option>
+                        <option>900</option>
+                      </select></label
+                    >
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead"><span>系统字体</span></div>
+                    <select class="select" id="fontFamilySelect" style="font-size:13px;height:34px;">
+                      <option value="Helvetica">Helvetica</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead"><span>字形</span></div>
+                    <div class="row">
+                      <button class="btn grow" id="fontBoldToggle" title="粗体"><b>B</b></button>
+                      <button class="btn grow" id="fontItalicToggle" title="斜体"><i>I</i></button>
+                      <button class="btn grow" id="fontUnderlineToggle" title="下划线"><u>U</u></button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead"><span>大小写</span></div>
+                    <div class="align-buttons">
+                      <button class="btn" data-text-case="upper">TT</button>
+                      <button class="btn" data-text-case="lower">tt</button>
+                      <button class="btn" data-text-case="title">Tt</button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead">
+                      <span>字间距</span><output id="letterSpacingOut">0px</output>
+                    </div>
+                    <input class="range" id="letterSpacing" type="range" min="-30" max="100" step="1" value="0" />
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead">
+                      <span>词间距</span><output id="wordSpacingOut">0px</output>
+                    </div>
+                    <input class="range" id="wordSpacing" type="range" min="-60" max="120" step="1" value="0" />
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead">
+                      <span>行间距</span><output id="lineHeightOut">115%</output>
+                    </div>
+                    <input class="range" id="lineHeight" type="range" min="80" max="250" step="5" data-button-step="5" value="115" />
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead"><span>文字对齐</span></div>
+                    <div class="align-buttons">
+                      <button class="btn" data-text-align="left">左</button>
+                      <button class="btn" data-text-align="center">中</button>
+                      <button class="btn" data-text-align="right">右</button>
+                      <button class="btn" data-vertical-align="top">上</button>
+                      <button class="btn" data-vertical-align="middle">中</button>
+                      <button class="btn" data-vertical-align="bottom">下</button>
+                    </div>
+                  </div>
+                  <div class="twocol field">
+                    <label
+                      ><span class="small">文字颜色</span
+                      ><input
+                        class="input colorinput"
+                        id="fontColor"
+                        type="color"
+                        value="#ffffff" /></label
+                    ><label
+                      ><span class="small">描边颜色</span
+                      ><input
+                        class="input colorinput"
+                        id="strokeColor"
+                        type="color"
+                        value="#000000"
+                    /></label>
+                    <label><span class="small">朗读高亮颜色</span><input class="input colorinput" id="highlightColor" type="color" value="#ffd21f" /></label>
+                    <label class="switch"><span>朗读高亮</span><input id="highlightEnabled" type="checkbox" checked /></label>
+                  </div>
+                  <div class="field" style="margin: 10px 0; padding: 8px 10px; background: rgba(255,255,255,0.04); border-radius: 6px; border: 1px solid var(--line);">
+                    <label class="row" style="gap: 8px; cursor: pointer; align-items: center;">
+                      <input id="cleanTrailingPunctuationInspector" type="checkbox" checked />
+                      <span class="small" style="font-weight: 600; color: var(--text);">精简句末逗号句号（短视频规范）</span>
+                    </label>
+                    <div class="small" style="color: var(--muted); margin-top: 4px; font-size: 11px;">
+                      自动精简字幕卡片末尾逗号与句号，100% 保留叹号、问号与成对引号。
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead">
+                      <span>描边</span><output id="strokeOut">2</output>
+                    </div>
+                    <input
+                      class="range"
+                      id="stroke"
+                      type="range"
+                      min="0"
+                      max="16"
+                      value="2"
+                    />
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead"><span>阴影颜色</span></div>
+                    <input class="input colorinput" id="shadowColor" type="color" value="#000000" />
+                  </div>
+                  <div class="field"><div class="fieldhead"><span>阴影强度</span><output id="shadowStrengthOut">3.0</output></div><input class="range" id="shadowStrength" type="range" min="0" max="10" step="0.1" value="3" /></div>
+                  <div class="field"><div class="fieldhead"><span>阴影不透明度</span><output id="shadowOpacityOut">80%</output></div><input class="range" id="shadowOpacity" type="range" min="0" max="100" value="80" /></div>
+                  <div class="field"><div class="fieldhead"><span>阴影柔化</span><output id="shadowBlurOut">4</output></div><input class="range" id="shadowBlur" type="range" min="0" max="80" step="0.5" value="4" /></div>
+                  <div class="field"><div class="fieldhead"><span>阴影距离</span><output id="shadowDistanceOut">3</output></div><input class="range" id="shadowDistance" type="range" min="0" max="100" step="0.5" value="3" /></div>
+                  <div class="field"><div class="fieldhead"><span>阴影方向（0°右 / 90°下 / 180°左 / 270°上）</span><output id="shadowAngleOut">45°</output></div><input class="range" id="shadowAngle" type="range" min="0" max="360" step="1" value="45" /></div>
+                  <div class="field">
+                    <div class="fieldhead"><span>发光颜色</span></div>
+                    <input class="input colorinput" id="glowColor" type="color" value="#ffffff" />
+                  </div>
+                  <div class="field">
+                    <div class="fieldhead">
+                      <span>发光半径</span><output id="glowOut">0</output>
+                    </div>
+                    <input class="range" id="glow" type="range" min="0" max="80" step="0.5" value="0" />
+                  </div>
+                </div>
+                <div class="inspectsection">
+                  <div class="switch">
+                    <span>文字背景</span
+                    ><input id="backgroundEnabled" type="checkbox" />
+                  </div>
+                  <div class="background-mode-tabs field">
+                    <button class="btn" data-background-mode="block">整体底板</button>
+                    <button class="btn" data-background-mode="line">逐行底板</button>
+                  </div>
+                  <div class="switch" style="margin-top: 6px;">
+                    <span>色块跟随文字（默认开启）</span>
+                    <input id="backgroundFitText" type="checkbox" checked />
+                  </div>
+                  <div class="small" style="margin-top:5px;color:var(--muted)">开启后底色会按每条字幕的实际文字宽度自动伸缩。</div>
+                  <div class="field">
+                    <div class="fieldhead"><span>背景颜色</span></div>
+                    <input class="input colorinput" id="backgroundColor" type="color" value="#000000" />
+                  </div>
+                  <div class="field"><div class="fieldhead"><span>背景不透明度</span><output id="backgroundOpacityOut">70%</output></div><input class="range" id="backgroundOpacity" type="range" min="0" max="100" value="70" /></div>
+                  <div class="field"><div class="fieldhead"><span>背景宽度</span><output id="backgroundWidthOut">14</output></div><input class="range" id="backgroundWidth" type="range" min="0" max="120" value="14" /></div>
+                  <div class="field"><div class="fieldhead"><span>背景高度</span><output id="backgroundHeightOut">14</output></div><input class="range" id="backgroundHeight" type="range" min="0" max="120" value="14" /></div>
+                  <div class="field"><div class="fieldhead"><span>X 轴偏移</span><output id="backgroundXOut">0</output></div><input class="range" id="backgroundX" type="range" min="-100" max="100" value="0" /></div>
+                  <div class="field"><div class="fieldhead"><span>Y 轴偏移</span><output id="backgroundYOut">0</output></div><input class="range" id="backgroundY" type="range" min="-100" max="100" value="0" /></div>
+                  <div class="field"><div class="fieldhead"><span>背景圆角</span><output id="backgroundRadiusOut">12</output></div><input class="range" id="backgroundRadius" type="range" min="0" max="100" value="12" /></div>
+                </div>
+              </div>
+            </div>
+            <div class="sidepage" id="inspect-color">
+              <div class="inspectsection">
+                <div class="grade-panel-head">
+                  <div><h3>主校色</h3><span>PRIMARY CORRECTION · REC.709</span></div>
+                  <div class="grade-node active"><i>01</i><b>基础校正</b></div>
+                </div>
+                <div class="grade-presets field">
+                  <button class="btn" data-grade-preset="auto">自动平衡</button>
+                  <button class="btn" data-grade-preset="flat">柔和人像</button>
+                  <button class="btn" data-grade-preset="cinema">电影对比</button>
+                </div>
+                <div id="colorControls"></div>
+                <div class="row field">
+                  <button class="btn grow" id="resetColor">重置调色</button
+                  ><button class="btn grow" id="toggleColor">对比原片</button>
+                </div>
+              </div>
+              <div class="inspectsection">
+                <h3>导出效果</h3>
+                <p class="small">
+                  Lift、Gamma、Gain 分别控制暗部、中间调和亮部；枢轴改变对比度中心，所有参数都会写入导出视频。
+                </p>
+              </div>
+            </div>
+            <div class="sidepage" id="inspect-filter">
+              <div class="inspectsection">
+                <div class="grade-panel-head"><div><h3>创意外观</h3><span>LOOK / LUT</span></div><div class="grade-node"><i>02</i><b>外观</b></div></div>
+                <p class="small">30 款内置效果使用真实调色参数，预览与导出一致；选择视频后点击即可套用。</p>
+                <div class="filter-grid field" id="filterGrid"></div>
+                <div class="field">
+                  <div class="fieldhead"><span>滤镜强度</span><output id="filterIntensityOut">100%</output></div>
+                  <input class="range" id="filterIntensity" type="range" min="0" max="100" value="100" />
+                </div>
+                <div class="row field">
+                  <button class="btn grow" id="importLut">导入 LUT</button>
+                  <button class="btn grow" id="clearFilter">清除滤镜</button>
+                </div>
+                <div class="status" id="lutStatus">支持 .cube、.3dl、.dat、.m3d、.csp。</div>
+              </div>
+            </div>
+            <div class="sidepage" id="inspect-beauty">
+              <div class="inspectsection">
+                <div class="grade-panel-head"><div><h3>人像修饰</h3><span>PORTRAIT FINISH</span></div><div class="grade-node beauty"><i>03</i><b>肤质</b></div></div>
+                <p class="small">
+                  肤质平滑采用保边处理，细节恢复负责重新增强边缘；各项含义互不重复。
+                </p>
+                <div class="beauty-skin-note"><i></i><span>肤色保护已启用</span><small>预览使用肤色遮罩；导出采用保守肤色校正与保边降噪</small></div>
+                <div id="beautyControls"></div>
+                <div class="row field">
+                  <button class="btn grow" id="resetBeauty">重置</button
+                  ><button class="btn grow" id="toggleBeauty">对比原片</button>
+                </div>
+              </div>
+            </div>
+            <div class="sidepage" id="inspect-audio">
+              <div class="inspectsection">
+                <h3>速度与音量</h3>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>播放速度</span><output id="speedOut">1.00×</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioSpeed"
+                    type="range"
+                    min="50"
+                    max="200"
+                    value="100"
+                  />
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>主音量</span><output id="volumeOut">100%</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioVolume"
+                    type="range"
+                    min="0"
+                    max="200"
+                    value="100"
+                  />
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>声像</span><output id="panOut">居中</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioPan"
+                    type="range"
+                    min="-100"
+                    max="100"
+                    value="0"
+                  />
+                </div>
+              </div>
+              <div class="inspectsection" id="clipAudioSection">
+                <h3>所选音频片段</h3>
+                <p class="small" id="clipAudioHint">
+                  选择一个主音频或音频素材片段后可单独调节。
+                </p>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>片段音量</span><output id="clipVolumeOut">100%</output>
+                  </div>
+                  <input class="range" id="clipVolume" type="range" min="0" max="200" value="100" />
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>片段声像</span><output id="clipPanOut">居中</output>
+                  </div>
+                  <input class="range" id="clipPan" type="range" min="-100" max="100" value="0" />
+                </div>
+                <div class="twocol field">
+                  <label><span class="small">淡入（秒）</span><input class="input" id="clipFadeIn" type="number" min="0" max="10" step="0.1" value="0" /></label>
+                  <label><span class="small">淡出（秒）</span><input class="input" id="clipFadeOut" type="number" min="0" max="10" step="0.1" value="0" /></label>
+                </div>
+                <div class="switch"><span>片段静音</span><input id="clipMute" type="checkbox" /></div>
+              </div>
+              <div class="inspectsection">
+                <h3>AI 语音母带与降噪</h3>
+                <p class="small">
+                  恢复 2.7.39 达芬奇级 AI 语音隔离：使用 48 kHz 神经网络与克制的频谱净化，优先保留自然、清晰的人声。
+                </p>
+                <div class="field">
+                  <select class="select" id="denoiseMode">
+                    <option value="ai-isolation" selected>AI 语音隔离 (达芬奇级 · 强力去杂音)</option>
+                    <option value="uvr5-master">✨ UVR5 级 · 录音棚人声母带</option>
+                    <option value="demucs">🚀 Meta Demucs 深度时域去噪（需要本地引擎）</option>
+                    <option value="dereverb">房间回声抑制（频谱降噪与均衡）</option>
+                    <option value="gentle">温和人声去噪 (保留自然环境音)</option>
+                    <option value="strong">强力去底噪 (空调/风扇/风噪)</option>
+                    <option value="off">关闭降噪</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>净化强度</span><output id="denoiseOut">85%</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="denoiseStrength"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value="85"
+                  />
+                </div>
+                <div class="field" style="display:none">
+                  <div class="fieldhead"><span>噪声场景预设</span></div>
+                  <select class="select" id="denoisePreset">
+                    <option value="balanced">均衡人声（推荐）</option>
+                    <option value="wind">户外风声 / 麦克风低频震动</option>
+                    <option value="electrical">电流声 / 50–60 Hz 嗡声</option>
+                    <option value="aircraft">飞机 / 空调 / 持续机器声</option>
+                    <option value="insects">蛐蛐 / 高频虫鸣 / 嘶声</option>
+                    <option value="mixed-heavy">混合重噪声（谨慎）</option>
+                  </select>
+                </div>
+                <div class="denoise-chain" id="denoiseProfessionalControls" style="display:none">
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title">
+                      <span>1 · De-Hum 电流嗡声</span>
+                      <input id="denoiseHumEnabled" type="checkbox" checked />
+                    </div>
+                    <div class="denoise-stage-note">先精准削减 50/60 Hz 及其谐波，避免后级反复放大嗡声。</div>
+                    <div class="row field">
+                      <select class="select grow" id="denoiseHumFrequency">
+                        <option value="auto">自动检测 50/60 Hz</option>
+                        <option value="50">强制 50 Hz</option>
+                        <option value="60">强制 60 Hz</option>
+                      </select>
+                      <button class="btn" id="analyzeDenoiseNoise">分析</button>
+                    </div>
+                    <div class="field">
+                      <div class="fieldhead"><span>陷波深度</span><output id="denoiseHumDepthOut">62%</output></div>
+                      <input class="range" id="denoiseHumDepth" type="range" min="0" max="100" value="62" />
+                    </div>
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>2 · 风噪与低频轰鸣</span><output id="denoiseWindOut">45%</output></div>
+                    <div class="denoise-stage-note">高通削减风声、脚架震动和麦克风碰触低频。</div>
+                    <input class="range field" id="denoiseWind" type="range" min="0" max="100" value="45" />
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>3 · 持续环境声</span><output id="denoiseEnvironmentOut">58%</output></div>
+                    <div class="denoise-stage-note">自适应频谱处理飞机、空调、风扇和稳定背景底噪。</div>
+                    <input class="range field" id="denoiseEnvironment" type="range" min="0" max="100" value="58" />
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>4 · RNNoise 神经人声净化</span><output id="denoiseNeuralOut">62%</output></div>
+                    <div class="denoise-stage-note">针对口播的神经网络降噪；过强可能产生水声或金属感。</div>
+                    <input class="range field" id="denoiseNeural" type="range" min="0" max="100" value="62" />
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>5 · 高频虫鸣与嘶声</span><output id="denoiseInsectOut">18%</output></div>
+                    <div class="denoise-stage-note">抑制蛐蛐等持续高频；过强会同时减少齿音和空气感。</div>
+                    <input class="range field" id="denoiseInsect" type="range" min="0" max="100" value="18" />
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>6 · 残留噪声二次清理</span><output id="denoiseResidualOut">34%</output></div>
+                    <div class="denoise-stage-note">使用更温和、不同参数的第二次频谱清理，不盲目叠加同一效果。</div>
+                    <input class="range field" id="denoiseResidual" type="range" min="0" max="100" value="34" />
+                  </div>
+                  <div class="denoise-stage">
+                    <div class="denoise-stage-title"><span>7 · EQ 人声修复</span><output id="denoiseVoiceRestoreOut">50%</output></div>
+                    <div class="denoise-stage-note">最后恢复温暖度、清晰度并控制齿音与峰值。</div>
+                    <input class="range field" id="denoiseVoiceRestore" type="range" min="0" max="100" value="50" />
+                  </div>
+                </div>
+                <div class="row" style="flex-wrap: wrap; gap: 6px;">
+                  <button class="btn grow" id="previewDenoise">试听当前片段</button>
+                  <button class="btn primary grow" id="applyDenoiseTrack">应用整条音轨</button>
+                  <button class="btn danger grow" id="revertDenoisedTrack" style="display:none">还原原始音频</button>
+                </div>
+                <div class="status" id="denoiseAnalysisState" style="display:none">尚未分析工频嗡声；选择“自动”时，试听或应用整轨也会自动检测。</div>
+                <div class="status" id="denoiseApplyState">导出时会自动应用当前降噪参数。</div>
+                <audio
+                  class="denoisecompare"
+                  id="denoiseCompare"
+                  controls
+                ></audio>
+              </div>
+              <div class="inspectsection" id="audioFxSection">
+                <h3>高级音频修复</h3>
+                <p class="small">片段 FX 先处理，音轨 FX 后处理；最多 6 个插槽。可旁路、排序、复制、重置和 A/B 试听，导出使用同一效果链。</p>
+                <div class="audio-fx-tabs">
+                  <button class="btn" type="button" data-audio-fx-scope="clip">片段效果</button>
+                  <button class="btn active" type="button" data-audio-fx-scope="track">音轨效果</button>
+                </div>
+                <div class="row field">
+                  <select class="select grow" id="audioFxAddType">
+                    <option value="voice-isolation">人声隔离</option>
+                    <option value="noise-reduction">噪声降低 / Noise Learn</option>
+                    <option value="de-hummer">电流嗡声消除</option>
+                    <option value="dialogue-separator">对话分离</option>
+                    <option value="de-esser">去齿音</option>
+                    <option value="expander-gate">扩展器 / 噪声门</option>
+                    <option value="parametric-eq">六段参数均衡器</option>
+                    <option value="compressor-limiter">压缩器 / 限幅器</option>
+                  </select>
+                  <button class="btn" id="addAudioFx" type="button">＋添加</button>
+                </div>
+                <div class="audio-fx-rack" id="audioFxRackList"></div>
+                <div class="row" style="flex-wrap:wrap;gap:6px">
+                  <button class="btn grow" id="audioFxBypass" type="button">全部旁路</button>
+                  <button class="btn grow" id="audioFxAudition" type="button">A/B 试听</button>
+                  <button class="btn primary grow" id="applyAudioFxRack" type="button">应用音轨效果</button>
+                </div>
+                <div class="status" id="audioFxState">音轨效果在快速降噪之后处理；片段效果在音轨效果之前处理。</div>
+              </div>
+              <div class="inspectsection">
+                <h3>声音塑形</h3>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>低频</span><output id="bassOut">0 dB</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioBass"
+                    type="range"
+                    min="-12"
+                    max="12"
+                    value="0"
+                  />
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>高频</span><output id="trebleOut">0 dB</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioTreble"
+                    type="range"
+                    min="-12"
+                    max="12"
+                    value="0"
+                  />
+                </div>
+                <div class="field">
+                  <div class="fieldhead">
+                    <span>压缩</span><output id="compressorOut">35%</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="audioCompressor"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value="35"
+                  />
+                </div>
+                <div class="field">
+                  <div class="fieldhead"><span>人声清晰度</span><output id="presenceOut">0</output></div>
+                  <input class="range" id="audioPresence" type="range" min="0" max="100" value="0" />
+                </div>
+                <div class="field">
+                  <div class="fieldhead"><span>齿音抑制</span><output id="deesserOut">0</output></div>
+                  <input class="range" id="audioDeesser" type="range" min="0" max="100" value="0" />
+                </div>
+                <div class="field">
+                  <div class="fieldhead"><span>人声增强</span><output id="voiceEnhanceOut">0</output></div>
+                  <input class="range" id="audioVoiceEnhance" type="range" min="0" max="100" value="0" />
+                </div>
+                <div class="twocol field">
+                  <label><span class="small">低切 Hz</span><input class="input" id="audioLowCut" type="number" min="20" max="300" value="60" /></label>
+                  <label><span class="small">高切 Hz</span><input class="input" id="audioHighCut" type="number" min="4000" max="20000" value="16500" /></label>
+                </div>
+                <div class="switch">
+                  <span>防爆音限制器</span
+                  ><input id="audioLimiter" type="checkbox" checked />
+                </div>
+                <div class="switch">
+                  <span>响度自动标准化</span><input id="audioNormalize" type="checkbox" />
+                </div>
+                <div class="field">
+                  <div class="fieldhead"><span>声道处理</span></div>
+                  <select class="select" id="audioChannelMode">
+                    <option value="original">保持原声道</option>
+                    <option value="left">左声道复制到左右</option>
+                    <option value="right">右声道复制到左右</option>
+                    <option value="mix">左右混合为双声道</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="sidepage" id="inspect-animation">
+              <div class="inspectsection">
+                <h3>入场与出场动画</h3>
+                <p class="small" id="animationHint">选中文字或图片后可套用；鼠标移入卡片即可预览。</p>
+                <div class="animation-mode-tabs field">
+                  <button class="btn active" data-animation-mode="enter">入场</button>
+                  <button class="btn" data-animation-mode="exit">出场</button>
+                  <button class="btn" data-animation-clear>无动画</button>
+                </div>
+                <div class="field">
+                  <div class="fieldhead"><span>动画时长</span><output id="animationDurationOut">0.45秒</output></div>
+                  <input class="range" id="animationDuration" type="range" min="15" max="200" step="5" value="45" />
+                </div>
+                <div class="animation-grid" id="animationGrid"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+      

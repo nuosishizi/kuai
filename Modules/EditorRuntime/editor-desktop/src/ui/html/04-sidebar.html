@@ -1,0 +1,242 @@
+<aside class="sidebar">
+          <nav class="tabs">
+            <button class="tab active" data-side="media">素材</button
+            ><button class="tab" data-side="subtitle">字幕</button
+            ><button class="tab" data-side="polish" id="tabGlobalPolish">体检审校</button
+            ><button class="tab" data-side="style">样式</button>
+          </nav>
+          <div class="sidebody">
+            <div class="sidepage active" id="side-media">
+              <div class="dropzone" id="dropzone" data-drop-zone="media">
+                <div>
+                  <b>拖入视频、音频、图片或字幕</b
+                  ><span>素材保持原文件关联，不复制占用空间</span>
+                </div>
+              </div>
+              <div id="mediaList"></div>
+            </div>
+            <div class="sidepage" id="side-subtitle">
+              <div class="sectiontitle">正确文案</div>
+              <textarea
+                class="textarea"
+                id="scriptText"
+                placeholder="在这里粘贴完整正确文案……"
+              ></textarea>
+              <div class="row" style="margin-top: 8px">
+                <button class="btn grow" id="pasteScript">粘贴文案</button
+                ><button class="btn" id="clearScript">清空</button
+                ><button class="btn primary grow" id="matchScript">
+                  匹配文案
+                </button>
+              </div>
+              <div class="row" style="margin-top: 7px">
+                <button class="btn grow" id="aiReviewStrict" disabled title="尽量只留能对应文稿的内容，多说、重读、跑题标红">
+                  严格对照
+                </button>
+                <button class="btn grow" id="aiReviewNatural" disabled title="意思对就可以，短口语可保留；重复阅读会自动剪掉或按 AI 决定保留">
+                  自然流畅
+                </button>
+              </div>
+              <button class="btn wide primary" id="globalPolish" disabled style="margin-top:7px" title="先匹配再自然纠正，自动切重录，口语并进绿字幕，清掉文稿备注；经文和神的话语只锁定等人点">
+                全局整理
+              </button>
+              <button class="btn wide" id="lastPolishReport" disabled style="margin-top:7px" title="重新打开上次整理结果，不用再识别">
+                上次整理结果
+              </button>
+              <div class="field" style="margin-top:10px">
+                <div class="fieldhead"><span>字幕切句</span></div>
+                <div class="align-buttons" id="captionLinesButtons">
+                  <button class="btn active" type="button" data-caption-lines="1" title="默认单行；按标点和单行字数上限切句，随时可改，不用重新匹配">单行（默认）</button>
+                  <button class="btn" type="button" data-caption-lines="2" title="按标点和两行字数上限切句">2行</button>
+                  <button class="btn" type="button" data-caption-lines="multi" title="主要按句号问号切，字数上限更宽">多行</button>
+                </div>
+              </div>
+              <div class="aux-subtitle-panel" id="auxSubtitlePanel">
+                <div class="sectiontitle">中文辅助翻译</div>
+                <div class="small">英文仍负责对齐、词级高亮和剪辑；中文只跟随整句，不改变英文时间。</div>
+                <label class="field" style="margin-top:7px"><span class="small">目标中文</span>
+                  <select class="select" id="auxSubtitleLanguage">
+                    <option value="zh-Hans">简体中文</option>
+                    <option value="zh-Hant">繁体中文</option>
+                  </select>
+                </label>
+                <div class="aux-subtitle-toggles">
+                  <label class="aux-subtitle-toggle"><input type="checkbox" id="auxSubtitleEditorVisible" checked> 编辑时显示</label>
+                </div>
+                <div class="small" style="margin-top:5px;color:#7f8b97">仅供编辑校对查看，不进入视频或达芬奇导出。</div>
+                <button class="btn primary wide" id="generateAuxSubtitles" style="margin-top:8px">生成／更新中文辅助字幕</button>
+                <div class="small" id="auxSubtitleStatus" style="margin-top:6px">匹配英文文案后可生成；人工修改的中文会锁定保留。</div>
+              </div>
+              <button class="btn wide" id="openReviewSettings" style="margin-top:7px">纠正设置</button>
+              <div class="sectiontitle" style="margin-top: 12px">听写引擎</div>
+              <label class="field"><span class="small">用谁听写</span>
+                <select class="select" id="speechEngine">
+                  <option value="groq">Groq Whisper</option>
+                  <option value="deepgram">Deepgram Nova-3</option>
+                  <option value="gemini">Gemini / Vertex 听写</option>
+                  <option value="local">本地 Whisper（离线）</option>
+                </select>
+              </label>
+              <div class="field">
+                <span class="small">识别语言</span>
+                <div class="lang-combo" id="speechLanguageCombo">
+                  <button type="button" class="select lang-combo-btn" id="speechLanguageButton">
+                    <span id="speechLanguageLabel">英语（默认）</span>
+                  </button>
+                  <div class="lang-combo-panel" id="speechLanguagePanel">
+                    <input
+                      class="input"
+                      id="speechLanguageSearch"
+                      type="search"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="搜索语种，如 中文、fr、日本語"
+                    />
+                    <div class="lang-combo-list" id="speechLanguageList"></div>
+                  </div>
+                  <input type="hidden" id="speechLanguage" value="en" />
+                </div>
+                <div class="row" style="margin-top:6px;gap:6px">
+                  <button class="btn small grow" type="button" data-speech-language-quick="zh">中文原声识别</button>
+                  <button class="btn small" type="button" data-speech-language-quick="en">英文</button>
+                </div>
+              </div>
+              <div id="groqSpeechSettings">
+                <input
+                  class="input"
+                  id="groqKeyInput"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="粘贴 Groq API Key（gsk_…）"
+                />
+                <div class="row" style="margin-top: 7px">
+                  <button class="btn primary grow" id="saveGroqKey">保存 Groq Key</button>
+                  <button class="btn" id="clearGroqKey">清除</button>
+                </div>
+              </div>
+              <div id="deepgramSpeechSettings" style="display:none">
+                <input
+                  class="input"
+                  id="deepgramKeyInput"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="粘贴 Deepgram API Key"
+                />
+                <div class="row" style="margin-top: 7px">
+                  <button class="btn primary grow" id="saveDeepgramKey">保存 Deepgram Key</button>
+                  <button class="btn" id="clearDeepgramKey">清除</button>
+                </div>
+              </div>
+              <div id="localSpeechSettings" style="display:none">
+                <label class="field"><span class="small">本地模型</span>
+                  <select class="select" id="localWhisperModel"></select>
+                </label>
+                <div class="small" id="localModelHint">推荐 Turbo Q5：快，口播对齐够用。要对齐更准再换 Large v3 Q5。</div>
+                <div class="row" style="margin-top: 7px">
+                  <button class="btn primary grow" id="downloadLocalModel">下载本地模型</button>
+                </div>
+              </div>
+              <div class="small" id="speechEngineHint" style="margin-top:7px"></div>
+              <div id="modelBox" class="status"></div>
+              <div class="progress" id="modelProgress" style="display: none">
+                <span></span>
+              </div>
+              <div class="divider"></div>
+              <div class="sectiontitle">口播问题</div>
+              <div id="issueList">
+                <div class="small">匹配文案后显示重复、错读、漏读和多读。</div>
+              </div>
+              <div class="divider"></div>
+              <div class="sectiontitle">字幕断行列表</div>
+              <button
+                class="btn primary wide"
+                id="addNewCaptionFromSub"
+                style="margin-bottom: 8px; font-weight: 750;"
+              >
+                ➕ 在当前位置新建字幕
+              </button>
+              <div class="row field">
+                <button class="btn grow" id="selectAllCaptions">全选</button>
+                <button class="btn primary grow" id="replaceCaptionsFromScript">按当前断行替换</button>
+              </div>
+              <label class="row" style="margin-bottom:8px; gap:6px; cursor:pointer; align-items:center;">
+                <input type="checkbox" id="cleanTrailingPunctuation" checked />
+                <span class="small" style="font-weight:500;">精简句末逗号句号（短视频美化，保留叹号问号）</span>
+              </label>
+              <div class="small" style="margin-bottom:8px">可直接修改任意一段；一键替换只改变文字，保留全部时间戳。</div>
+              <div class="caption-inspector-list" id="captionInspectorList"></div>
+            </div>
+            <div class="sidepage" id="side-polish">
+              <div class="polish-top-header">
+                <div class="sectiontitle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span>全局体检与审校</span>
+                  <button class="btn primary small" id="runGlobalPolishSidebar" style="padding:2px 8px; font-size:12px;">⚡ 一键体检</button>
+                </div>
+                <p class="small" id="globalPolishSummarySidebar" style="color:var(--muted); line-height:1.4; margin-bottom:8px;">
+                  点击「一键体检」扫描重读、口播偏差、经文保护与停顿气口。
+                </p>
+
+                <!-- 气口阈值与经文保护参数区 -->
+                <div class="polish-controls-card">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span class="small" style="font-weight:600;">气口筛选阈值</span>
+                    <span class="small" id="pauseThresholdValue" style="color:var(--blue); font-weight:700;">≥ 0.50 秒</span>
+                  </div>
+                  <input type="range" class="range" id="pauseGapThreshold" min="0.10" max="2.50" step="0.05" value="0.50" style="width:100%; accent-color:var(--blue);" />
+                  <label class="row" style="margin-top:6px; gap:6px; cursor:pointer; align-items:center;">
+                    <input type="checkbox" id="unlockScriptureGaps" />
+                    <span class="small" style="color:#eab308; font-weight:500;">✝ 允许勾选经文附近气口（默认受保护锁定）</span>
+                  </label>
+                </div>
+
+                <!-- 分类筛选标签 Tabs -->
+                <div class="polish-filter-tabs">
+                  <button class="btn small active" data-polish-filter="all" id="filterPolishAll">全部 (0)</button>
+                  <button class="btn small" data-polish-filter="pause" id="filterPolishPause">气口 (0)</button>
+                  <button class="btn small" data-polish-filter="scripture" id="filterPolishScripture" style="color:#eab308;">✝ 经文 (0)</button>
+                  <button class="btn small" data-polish-filter="spokenDiff" id="filterPolishSpokenDiff">读法差异 (0)</button>
+                  <button class="btn small" data-polish-filter="repeat" id="filterPolishRepeat">重读卡壳 (0)</button>
+                  <button class="btn small" data-polish-filter="missing" id="filterPolishMissing">缺读待补 (0)</button>
+                  <button class="btn small" data-polish-filter="notes" id="filterPolishNotes">已清备注 (0)</button>
+                </div>
+
+                <!-- 顶部固定批量动作栏（紧随分类标签，不随列表滚动） -->
+                <div class="polish-actions-bar">
+                  <button class="btn small" id="selectAllPolishBtn">全选建议</button>
+                  <button class="btn small" id="invertSelectPolishBtn">反选</button>
+                  <button class="btn primary small grow" id="applyPauseGapsSidebarBtn" style="font-weight:600;">✂ 切勾选气口 (<span id="checkedGapsCount">0</span>)</button>
+                </div>
+              </div>
+
+              <!-- 体检卡片独立向下滚动列表 -->
+              <div class="polish-list" id="globalPolishListSidebar">
+                <div class="small" style="text-align:center; padding:24px 0; color:var(--muted);">暂无体检结果，请先点击上方「⚡ 一键体检」</div>
+              </div>
+            </div>
+            <div class="sidepage" id="side-style">
+              <button
+                class="btn primary wide"
+                id="addNewCaptionFromStyle"
+                style="margin-bottom: 12px; font-weight: 750;"
+              >
+                ➕ 在当前位置新建字幕
+              </button>
+              <div class="sectiontitle">字幕样式</div>
+              <div class="presets" id="presetList"></div>
+              <button
+                class="btn wide"
+                id="saveCaptionPreset"
+                style="margin-top: 9px"
+              >
+                保存当前样式
+              </button>
+              <div class="status">
+                点击样式默认套用整条字幕轨道，随后仍可在右侧修改全部属性。
+              </div>
+            </div>
+          </div>
+        </aside>
+        <div class="panel-resizer" id="leftPanelResizer" data-resize="side"></div>
+        

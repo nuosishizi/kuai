@@ -6,8 +6,16 @@ $ErrorActionPreference = "Stop"
 try { chcp 65001 > $null } catch {}
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Version = "2.7.47"
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$PackageJsonPath = Join-Path $ProjectRoot "Modules\EditorRuntime\editor-desktop\package.json"
+$Version = if ($env:GITHUB_REF_NAME -match '^v?(\d+\.\d+\.\d+.*)') {
+  $Matches[1]
+} elseif (Test-Path $PackageJsonPath) {
+  (Get-Content $PackageJsonPath -Raw | ConvertFrom-Json).version
+} else {
+  "2.7.52"
+}
+
 $AppName = "QuickCut-Windows-$Version"
 $StageRoot = Join-Path $ProjectRoot "dist-local\pack-stage-windows"
 $Stage = Join-Path $StageRoot $AppName
@@ -55,11 +63,21 @@ $MediaDst = Join-Path $Stage "Modules\EditorRuntime\media"
 New-Item -ItemType Directory -Force -Path $EditorDst | Out-Null
 New-Item -ItemType Directory -Force -Path $MediaDst | Out-Null
 
+Info "Pre-building editor UI bundle..."
+$BuildScript = Join-Path $EditorSrc "src\ui\build.mjs"
+if (Test-Path $BuildScript) {
+  & node $BuildScript
+}
+
 Info "Copying editor..."
 Copy-Item (Join-Path $EditorSrc "package.json") $EditorDst
-Copy-Item (Join-Path $EditorSrc "README-使用说明.txt") $EditorDst
+if (Test-Path (Join-Path $EditorSrc "README-使用说明.txt")) {
+  Copy-Item (Join-Path $EditorSrc "README-使用说明.txt") $EditorDst
+}
 Copy-Item -Recurse (Join-Path $EditorSrc "src") (Join-Path $EditorDst "src")
-Copy-Item -Recurse (Join-Path $EditorSrc "assets") (Join-Path $EditorDst "assets")
+if (Test-Path (Join-Path $EditorSrc "assets")) {
+  Copy-Item -Recurse (Join-Path $EditorSrc "assets") (Join-Path $EditorDst "assets")
+}
 
 Info "Copying Windows FFmpeg..."
 $foundFfmpeg = $false
@@ -147,58 +165,60 @@ title QuickCut $Version
 set "QUICKCUT_MEDIA_ROOT=%~dp0Modules\EditorRuntime\media"
 set "PATH=%~dp0runtime\node;%QUICKCUT_MEDIA_ROOT%;%PATH%"
 if not exist "%~dp0runtime\node\node.exe" (
-  echo Missing bundled Node.js.
+  echo 缺少内置 Node.js 运行环境。
   pause
   exit /b 1
 )
 if not exist "%QUICKCUT_MEDIA_ROOT%\ffmpeg.exe" (
-  echo Missing bundled FFmpeg.
+  echo 缺少内置 FFmpeg 媒体组件。
   pause
   exit /b 1
 )
-echo Starting QuickCut $Version ...
+echo 正在启动快剪 QuickCut $Version ...
 cd /d "%~dp0Modules\EditorRuntime\editor-desktop"
 "%~dp0runtime\node\node.exe" "src\main.mjs"
 if errorlevel 1 (
   echo.
-  echo QuickCut exited with an error.
+  echo 快剪运行出现异常，已退出。
   pause
 )
 endlocal
 "@
-Set-Content -Path (Join-Path $Stage "启动快剪.bat") -Value $Launcher -Encoding ASCII
+Set-Content -Path (Join-Path $Stage "启动快剪.bat") -Value $Launcher -Encoding OEM
 
 $Readme = @"
-快剪 QuickCut $Version  Windows 测试包
+快剪 QuickCut $Version  Windows 运行说明
 
 系统要求
 - Windows 10 / 11 64 位
-- 已安装 Microsoft Edge（一般系统自带）
+- 已安装 Microsoft Edge（系统自带）
 - 不需要单独安装 Node.js 或 FFmpeg
 
-怎么用
-1. 解压整个文件夹，不要只拷其中一个文件。
-2. 双击「启动快剪.bat」。
+使用方式
+1. 解压整个文件夹（或直接使用安装程序安装）。
+2. 双击「快剪.exe」或「启动快剪.bat」。
 3. 如果 SmartScreen 拦截，选「更多信息」→「仍要运行」。
 4. 关掉编辑器窗口即退出。
 
-测试建议
-- 新建工程，导入一段口播视频。
-- 在字幕页粘贴正确文案，保存 Groq API Key 后再匹配。
-- 试一下剪停顿、高亮字幕、导出视频、导出达芬奇。
-- 达芬奇字幕请选 xml / ttml / dfxp，不要选 srt 或 ass。
+功能亮点
+- 视频/音频智能停顿剪切与文稿对齐；
+- 7 段专业级人声降噪与工频 50/60Hz 嗡声消除；
+- 达芬奇 Resolve 5 步时序无损导出与实时联动；
+- ASS 贝塞尔三次圆角字幕排版与逐字高亮。
 
 说明
 - 工程数据保存在当前 Windows 用户的 %APPDATA%\QuickCut。
-- 本包不含任何 API Key，也不含你的工程和素材。
-- 仅供测试，版权归 HX。
+- 本包不含任何第三方 API Key，也不包含素材文件。
 "@
-Info "Compiling native Windows GUI launcher (快剪.exe)..."
+Set-Content -Path (Join-Path $Stage "使用说明.txt") -Value $Readme -Encoding UTF8
+
+Info "Compiling enhanced native Windows GUI launcher (快剪.exe)..."
 $launcherCode = @"
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
+using System.Threading;
 
 namespace QuickCutLauncher {
     public class Program {
@@ -207,9 +227,20 @@ namespace QuickCutLauncher {
             try {
                 string appDir = AppDomain.CurrentDomain.BaseDirectory;
                 string nodeExe = Path.Combine(appDir, "runtime", "node", "node.exe");
-                if (!File.Exists(nodeExe)) { nodeExe = "node.exe"; }
+                if (!File.Exists(nodeExe)) {
+                    nodeExe = "node.exe";
+                }
                 string script = Path.Combine(appDir, "Modules", "EditorRuntime", "editor-desktop", "src", "main.mjs");
                 string mediaDir = Path.Combine(appDir, "Modules", "EditorRuntime", "media");
+
+                if (!File.Exists(nodeExe) && !File.Exists(Path.Combine(appDir, "runtime", "node", "node.exe"))) {
+                    MessageBox.Show("找不到内置运行组件 runtime\\node\\node.exe，请确认完整解压了安装包。", "快剪 QuickCut", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                if (!File.Exists(script)) {
+                    MessageBox.Show("找不到主程序文件：\n" + script, "快剪 QuickCut", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = nodeExe;
@@ -217,11 +248,31 @@ namespace QuickCutLauncher {
                 psi.WorkingDirectory = Path.Combine(appDir, "Modules", "EditorRuntime", "editor-desktop");
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
+                psi.RedirectStandardError = true;
                 psi.EnvironmentVariables["QUICKCUT_MEDIA_ROOT"] = mediaDir;
 
-                Process.Start(psi);
+                Process proc = Process.Start(psi);
+                if (proc == null) {
+                    MessageBox.Show("无法启动后台服务进程。", "快剪 QuickCut", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Monitor initial 2.5 seconds to detect immediate startup crash
+                bool exitedEarly = proc.WaitForExit(2500);
+                if (exitedEarly && proc.ExitCode != 0) {
+                    string errorOut = proc.StandardError.ReadToEnd();
+                    string msg = "快剪后台服务启动异常 (退出码 " + proc.ExitCode + ")。\n\n" +
+                                 (string.IsNullOrEmpty(errorOut) ? "请双击运行「启动快剪.bat」查看控制台详细报错。" : errorOut);
+                    DialogResult result = MessageBox.Show(msg + "\n\n是否立即以命令行诊断模式启动？", "快剪 QuickCut", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (result == DialogResult.Yes) {
+                        string batPath = Path.Combine(appDir, "启动快剪.bat");
+                        if (File.Exists(batPath)) {
+                            Process.Start(new ProcessStartInfo(batPath) { UseShellExecute = true });
+                        }
+                    }
+                }
             } catch (Exception ex) {
-                MessageBox.Show("启动快剪失败: " + ex.Message, "快剪", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("启动快剪遇到异常: " + ex.Message, "快剪 QuickCut", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

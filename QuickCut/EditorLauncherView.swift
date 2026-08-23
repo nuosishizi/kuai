@@ -27,16 +27,29 @@ final class EditorHostModel: ObservableObject {
         let script = runtime.appendingPathComponent("editor-desktop/src/main.mjs")
         let media = runtime.appendingPathComponent("media", isDirectory: true)
 
-        guard FileManager.default.isExecutableFile(atPath: bun.path),
+        // Auto-restore execute permissions if stripped by archiving/Gatekeeper
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bun.path)
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: media.appendingPathComponent("ffmpeg").path)
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: media.appendingPathComponent("ffprobe").path)
+
+        var executableURL = bun
+        if !FileManager.default.isExecutableFile(atPath: executableURL.path) {
+            let candidates = ["/opt/homebrew/bin/bun", "/usr/local/bin/bun", "/opt/homebrew/bin/node", "/usr/local/bin/node"]
+            if let fallback = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+                executableURL = URL(fileURLWithPath: fallback)
+            }
+        }
+
+        guard FileManager.default.isExecutableFile(atPath: executableURL.path),
               FileManager.default.fileExists(atPath: script.path) else {
-            fail("视频剪辑运行组件没有正确打包，请重新运行一键生成 APP。")
+            fail("视频剪辑运行组件没有正确打包或缺少执行权限。请尝试运行一键修复工具。")
             return
         }
 
         let task = Process()
         let stdout = Pipe()
         let stderr = Pipe()
-        task.executableURL = bun
+        task.executableURL = executableURL
         task.arguments = [script.path]
         task.currentDirectoryURL = runtime.appendingPathComponent("editor-desktop", isDirectory: true)
         var env = ProcessInfo.processInfo.environment

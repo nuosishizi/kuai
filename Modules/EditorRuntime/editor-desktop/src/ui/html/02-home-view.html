@@ -1,0 +1,66 @@
+<section class="home" id="home">
+      <header class="homebar">
+        <img class="homelogo" src="__QUICKCUT_ICON__" alt="" />
+        <div class="hometitle">快剪 <span>QuickCut</span></div>
+        <div class="homeactions">
+          <button class="btn" id="homeRestore">恢复备份</button
+          ><button class="btn" id="homeBackup">备份工程</button
+          ><button class="btn primary" id="homeNewProject">新建工程</button>
+        </div>
+      </header>
+      <main class="homebody">
+        <div class="homeheading">
+          <div>
+            <h1>我的工程</h1>
+            <p>工程会自动保存到本机</p>
+          </div>
+          <input
+            class="input homesearch"
+            id="homeSearch"
+            placeholder="搜索工程"
+          />
+        </div>
+        <div class="projectgrid" id="homeProjectGrid"></div>
+        <div class="emptyprojects" id="homeEmpty">
+          <div>
+            <b>还没有工程</b><span>新建一个工程开始剪辑</span>
+            <div style="margin-top: 16px">
+              <button class="btn primary" id="homeEmptyNew">新建工程</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <div class="modal" id="newProjectModal">
+      <div class="dialog newdialog">
+        <h2>新建工程</h2>
+        <label
+          >工程名称<input
+            class="input"
+            id="newProjectName"
+            maxlength="80"
+            value="未命名工程" /></label
+        ><label
+          >画布比例<select class="select" id="newProjectRatio">
+            <option value="9:16">9:16 竖屏</option>
+            <option value="16:9">16:9 横屏</option>
+          </select></label
+        >
+        <div class="dialogactions">
+          <button class="btn" id="newProjectCancel">取消</button
+          ><button class="btn primary" id="newProjectConfirm">创建</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="confirmModal">
+      <div class="dialog newdialog">
+        <h2 id="confirmTitle">请确认</h2>
+        <p id="confirmMessage"></p>
+        <div class="dialogactions">
+          <button class="btn" id="confirmCancel">取消</button>
+          <button class="btn danger" id="confirmAccept">确认</button>
+        </div>
+      </div>
+    </div>
+    <div class="app" id="app">
+      

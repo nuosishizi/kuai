@@ -1,6 +1,6 @@
 {
   "name": "quickcut-desktop",
-  "version": "2.7.52",
+  "version": "2.7.53",
   "private": true,
   "type": "module",
   "description": "QuickCut local editor for pause cutting, script alignment, captions and multi-track editing.",
@@ -13,6 +13,8 @@
   "scripts": {
     "start": "node src/main.mjs",
     "start:win": "node src/main.mjs",
+    "build:ui": "node src/ui/build.mjs",
+    "pretest": "node src/ui/build.mjs",
     "test": "node --test tests/*.test.mjs"
   }
 }

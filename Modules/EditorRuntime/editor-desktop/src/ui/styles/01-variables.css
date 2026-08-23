@@ -1,0 +1,61 @@
+
+      :root {
+        color-scheme: dark;
+        --bg: #111314;
+        --panel: #191b1d;
+        --panel2: #202326;
+        --panel3: #272a2e;
+        --line: #33373c;
+        --line2: #41464d;
+        --text: #f2f3f4;
+        --muted: #969ca5;
+        --blue: #1684ff;
+        --blue2: #50a8ff;
+        --green: #31c48d;
+        --amber: #f5ad42;
+        --red: #ff6363;
+        --violet: #9b7cff;
+        --radius: 10px;
+        --top: 54px;
+        --timeline: 292px;
+        --side: 310px;
+        --inspector: 306px;
+        --track-label-width: 175px;
+        --footer: 24px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        touch-action: none;
+        overscroll-behavior: none;
+        font:
+          13px/1.4 -apple-system,
+          BlinkMacSystemFont,
+          "SF Pro Text",
+          "PingFang SC",
+          sans-serif;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: var(--top) minmax(260px, 1fr) var(--timeline) var(--footer);
+        user-select: none;
+      }

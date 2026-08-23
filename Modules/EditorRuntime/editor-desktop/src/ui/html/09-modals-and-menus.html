@@ -1,0 +1,301 @@
+<div class="context-menu" id="contextMenu"></div>
+    <div class="dropveil" id="dropVeil">
+      <div id="dropVeilText">松开即可导入素材</div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="modal" id="exportSettingsModal">
+      <div class="dialog">
+        <h2>导出设置</h2>
+        <div class="twocol">
+          <label class="field"
+            ><span class="small">文件名</span
+            ><input class="input" id="exportName" value="快剪导出" /></label
+          ><label class="field"
+            ><span class="small">格式</span
+            ><select class="select" id="exportFormat">
+              <option value="mp4">MP4</option>
+              <option value="mov">MOV</option>
+              <option value="mp3">MP3 仅音频</option>
+            </select></label
+          ><label class="field"
+            ><span class="small">分辨率</span
+            ><select class="select" id="exportResolution">
+              <option value="current">跟随画布</option>
+              <option value="1080x1920">1080×1920</option>
+              <option value="1920x1080">1920×1080</option>
+              <option value="2160x3840">2160×3840</option>
+              <option value="3840x2160">3840×2160</option>
+            </select></label
+          ><label class="field"
+            ><span class="small">帧速率</span
+            ><select class="select" id="exportFps">
+              <option value="source" selected>跟随素材（推荐）</option>
+              <option>24</option>
+              <option>30</option>
+              <option>60</option>
+            </select></label
+          ><label class="field"
+            ><span class="small">编码器</span
+            ><select class="select" id="exportCodec">
+              <option value="source" selected>跟随素材（极速/零损失）</option>
+              <option value="h264">H.264（兼容性最好）</option>
+              <option value="hevc">H.265 / HEVC</option>
+            </select></label
+          ><label class="field"
+            ><span class="small">视频位元率</span
+            ><select class="select" id="exportBitrate">
+              <option value="recommended" selected>推荐（自动匹配分辨率）</option>
+              <option value="8M">8 Mbps</option>
+              <option value="12M">12 Mbps</option>
+              <option value="20M">20 Mbps</option>
+              <option value="35M">35 Mbps</option>
+              <option value="55M">55 Mbps</option>
+            </select></label
+          >
+          <label class="field"
+            ><span class="small">画质与速度</span
+            ><select class="select" id="exportQuality">
+              <option value="balanced" selected>视觉无损（推荐）</option>
+              <option value="fast">极速、小体积</option>
+              <option value="maximum">最高画质</option>
+            </select></label
+          >
+          <div class="field">
+            <div class="fieldhead"><span class="small">渲染设备</span><button class="btn small" type="button" id="refreshExportHardware">重新检测显卡</button></div>
+            <div class="row" style="gap:16px;margin-top:6px;flex-wrap:wrap">
+              <label class="row" style="gap:6px;align-items:center;margin:0">
+                <input type="checkbox" id="exportUseGpu" checked />
+                <span class="small">GPU 显卡（默认）</span>
+              </label>
+              <label class="row" style="gap:6px;align-items:center;margin:0">
+                <input type="checkbox" id="exportUseCpu" />
+                <span class="small">CPU 软件编码</span>
+              </label>
+            </div>
+            <div class="small" id="exportHardwareStatus" style="margin-top:7px;color:var(--muted)">正在检测可用硬件编码器…</div>
+          </div>
+          <label class="field"
+            ><span class="small">色彩空间</span
+            ><select class="select" id="exportColorSpace">
+              <option value="bt709" selected>Rec. 709 SDR（推荐）</option>
+              <option value="p3">Display P3 SDR</option>
+              <option value="bt2020">Rec. 2020 SDR</option>
+              <option value="hlg">Rec. 2100 HLG HDR</option>
+              <option value="pq">Rec. 2100 PQ / HDR10</option>
+            </select></label
+          >
+        </div>
+        <div style="margin-top:12px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:#17191b">
+          <div><span class="small">成片时长</span> <b id="exportDurationText">00:00</b></div>
+          <div style="margin-top:6px"><span class="small">导出方式</span> <b id="exportModeText">正在判断…</b></div>
+          <div style="margin-top:6px"><span class="small">预计大小</span> <b id="exportSizeText">正在计算…</b></div>
+        </div>
+        <p class="small">
+          默认勾选 GPU。未改编码时可零重编码直出；有剪辑或效果时 GPU 走 NVIDIA / Intel / AMD / Apple 显卡，失败再回退 CPU。只勾 CPU 则全程软件编码。
+        </p>
+        <div class="dialogactions">
+          <button class="btn" id="exportSettingsCancel">取消</button
+          ><button class="btn primary" type="button" id="exportSettingsConfirm">
+            选择路径并导出
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="globalPolishModal">
+      <div class="dialog newdialog" style="max-width:520px">
+        <h2>全局整理结果</h2>
+        <p class="small" id="globalPolishSummary"></p>
+        <div id="globalPolishBody" style="max-height:360px; overflow:auto; margin-top:8px"></div>
+        <div class="dialogactions">
+          <button class="btn" id="globalPolishClose">关闭</button>
+          <button class="btn primary" id="applyPauseGapsBtn">切勾选的气口</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="reviewSettingsModal">
+      <div class="dialog newdialog" style="max-width:560px">
+        <h2>AI 纠正设置</h2>
+        <p class="small">听写仍用 Groq / Deepgram / 本地 Whisper。纠正可用 Gemini API、Vertex，或本机已登录的 Antigravity CLI（走 Gemini 套餐，不用 API Key）。经文自动严审，说错禁止导出。Vertex 项目接口不接受 API Key，只用 Key 请走 Express。</p>
+        <label class="field"><span class="small">接口</span>
+          <select class="select" id="reviewProvider">
+            <option value="gemini">Gemini API</option>
+            <option value="vertex">Vertex AI</option>
+            <option value="antigravity">Antigravity CLI（Gemini 套餐）</option>
+          </select>
+        </label>
+        <label class="field"><span class="small">模型</span>
+          <div class="row">
+            <select class="select grow" id="reviewModel"></select>
+            <button class="btn" id="refreshGeminiModels">拉取最新</button>
+          </div>
+        </label>
+        <div class="status" id="geminiModelHint"></div>
+        <div id="geminiSettings">
+          <label class="field"><span class="small">Gemini API Key</span>
+            <input class="input" id="geminiKeyInput" type="password" autocomplete="off" placeholder="粘贴 AIza… Key" />
+          </label>
+          <div class="row" style="margin-top:7px">
+            <button class="btn primary grow" id="saveGeminiKey">保存 Gemini Key</button>
+            <button class="btn" id="clearGeminiKey">清除</button>
+          </div>
+          <div class="status" id="geminiKeyHint"></div>
+        </div>
+        <div id="vertexSettings" style="display:none">
+          <label class="field"><span class="small">Vertex Key（Express，只用 Key）</span>
+            <input class="input" id="vertexKeyInput" type="password" autocomplete="off" placeholder="Vertex / Express API Key" />
+          </label>
+          <label class="field"><span class="small">Vertex 项目 ID（仅服务账号需要）</span>
+            <input class="input" id="vertexProject" placeholder="只用 Key 时可以留空" />
+          </label>
+          <label class="field"><span class="small">地区</span>
+            <input class="input" id="vertexLocation" placeholder="us-central1" />
+          </label>
+          <div class="row" style="margin-top:7px">
+            <button class="btn primary grow" id="saveVertexKey">保存 Vertex</button>
+            <button class="btn" id="importVertexSa">导入服务账号 JSON</button>
+            <button class="btn" id="clearVertexSecrets">清除</button>
+          </div>
+          <div class="status" id="vertexKeyHint"></div>
+        </div>
+        <div id="antigravitySettings" style="display:none">
+          <p class="small">走本机 agy 的 Gemini 套餐，不用 API Key。没装过先点「安装」，装好后点「登录」用浏览器授权，再点「检测」。</p>
+          <div class="row" style="margin-top:7px; flex-wrap:wrap; gap:6px">
+            <button class="btn" type="button" id="checkAntigravity">检测</button>
+            <button class="btn primary" type="button" id="installAntigravity">安装 agy</button>
+            <button class="btn" type="button" id="loginAntigravity">登录</button>
+            <button class="btn" type="button" id="browseAntigravityCli">浏览路径</button>
+            <button class="btn" type="button" id="openAntigravityDocs">官方说明</button>
+          </div>
+          <label class="field" style="margin-top:8px"><span class="small">agy 路径（可留空自动查找）</span>
+            <input class="input" id="antigravityPath" placeholder="agy 或完整路径，官方一般在 %LOCALAPPDATA%\agy\bin\agy.exe" />
+          </label>
+          <div class="status" id="antigravityHint"></div>
+        </div>
+        <label class="field" style="margin-top:10px"><span class="small">严格对照提示词</span>
+          <textarea class="textarea" id="promptStrict" style="height:88px"></textarea>
+        </label>
+        <label class="field"><span class="small">自然流畅提示词</span>
+          <textarea class="textarea" id="promptNatural" style="height:88px"></textarea>
+        </label>
+        <div class="row" style="margin-top:7px">
+          <button class="btn grow" id="resetReviewPrompts">恢复默认提示词</button>
+        </div>
+        <div class="dialogactions">
+          <button class="btn" id="reviewSettingsCancel">关闭</button>
+          <button class="btn primary" id="reviewSettingsSave">保存设置</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="pauseCutModal">
+      <div class="dialog newdialog" style="max-width:500px">
+        <h2>✂ 剪辑气口设置（停顿与杂音切除）</h2>
+        <p class="small">沿用 2.7.5 的讲话气口：按秒识别停顿和底噪，一键切除并波纹对齐。下面的达芬奇项用来微调句首句尾留白。</p>
+        <label class="field"><span class="small">最小停顿阈值（超过此时长判定为气口）</span>
+          <div class="row">
+            <input class="range grow" id="pauseMinDuration" type="range" min="30" max="300" step="5" value="80" />
+            <output class="small" id="pauseMinDurationOut" style="min-width:54px; text-align:right">0.80 秒</output>
+          </div>
+          <span class="small" style="color:var(--text-muted)">建议 0.6 ~ 1.2 秒。长停顿、思考间隙会被切掉。</span>
+        </label>
+        <label class="field" style="margin-top:10px"><span class="small">前后呼吸留白（句首句尾保留安全缓冲）</span>
+          <div class="row">
+            <input class="range grow" id="pauseBuffer" type="range" min="5" max="40" step="1" value="15" />
+            <output class="small" id="pauseBufferOut" style="min-width:54px; text-align:right">0.15 秒</output>
+          </div>
+          <span class="small" style="color:var(--text-muted)">保留自然呼吸，避免切得太紧或吞字。</span>
+        </label>
+        <label class="field" style="margin-top:10px"><span class="small">环境底噪过滤灵敏度</span>
+          <div class="row">
+            <input class="range grow" id="pauseSensitivity" type="range" min="10" max="95" step="5" value="65" />
+            <output class="small" id="pauseSensitivityOut" style="min-width:54px; text-align:right">65%</output>
+          </div>
+          <span class="small" style="color:var(--text-muted)">房间底噪、风扇或麦克风电流也能判成可切气口。</span>
+        </label>
+        <label class="field" style="display:flex; align-items:center; justify-content:space-between; margin-top:12px">
+          <div>
+            <span class="small" style="font-weight:500">同步剪除字幕间长空白停顿</span>
+            <div class="small" style="color:var(--text-muted)">两句字幕之间的长无声一并波纹切除</div>
+          </div>
+          <input type="checkbox" id="pauseTrimCaptionGaps" checked style="width:18px; height:18px" />
+        </label>
+        <details style="margin-top:14px">
+          <summary class="small" style="cursor:pointer; color:var(--text-muted)">达芬奇精细（dB / 帧）</summary>
+          <div class="resolve-param-row" style="display:grid; grid-template-columns:85px 1fr 72px 28px; align-items:center; gap:10px; margin:12px 0 10px">
+            <span class="small" style="text-align:right">阈值</span>
+            <input class="range" id="pauseThresholdDb" type="range" min="-60.0" max="-10.0" step="0.5" value="-25.0" />
+            <input class="input" id="pauseThresholdDbInput" type="number" step="0.5" min="-60" max="-10" value="-25.0" style="text-align:right; padding:4px 8px; font-size:13px; height:28px" />
+            <span class="small">dB</span>
+          </div>
+          <div class="resolve-param-row" style="display:grid; grid-template-columns:85px 1fr 72px 28px; align-items:center; gap:10px; margin-bottom:10px">
+            <span class="small" style="text-align:right">头部之前</span>
+            <input class="range" id="pauseHeadFrames" type="range" min="0" max="30" step="1" value="0" />
+            <input class="input" id="pauseHeadFramesInput" type="number" step="1" min="0" max="30" value="0" style="text-align:right; padding:4px 8px; font-size:13px; height:28px" />
+            <span class="small">帧</span>
+          </div>
+          <div class="resolve-param-row" style="display:grid; grid-template-columns:85px 1fr 72px 28px; align-items:center; gap:10px; margin-bottom:10px">
+            <span class="small" style="text-align:right">尾部之后</span>
+            <input class="range" id="pauseTailFrames" type="range" min="0" max="30" step="1" value="0" />
+            <input class="input" id="pauseTailFramesInput" type="number" step="1" min="0" max="30" value="0" style="text-align:right; padding:4px 8px; font-size:13px; height:28px" />
+            <span class="small">帧</span>
+          </div>
+          <div class="resolve-param-row" style="display:grid; grid-template-columns:85px 1fr 72px 28px; align-items:center; gap:10px; margin-bottom:10px">
+            <span class="small" style="text-align:right">最小剥离</span>
+            <input class="range" id="pauseMinFrames" type="range" min="1" max="60" step="1" value="2" />
+            <input class="input" id="pauseMinFramesInput" type="number" step="1" min="1" max="60" value="2" style="text-align:right; padding:4px 8px; font-size:13px; height:28px" />
+            <span class="small">帧</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin:4px 0 8px 95px">
+            <input type="checkbox" id="pauseCrossfade" checked style="width:16px; height:16px" />
+            <label for="pauseCrossfade" class="small" style="margin:0">音频交叉淡变</label>
+          </div>
+        </details>
+        <div id="pauseAnalysisSummary" class="status" style="display:none; margin-top:10px"></div>
+        <div class="dialogactions" style="margin-top:14px">
+          <button class="btn" id="pauseCutCancel">关闭</button>
+          <button class="btn" id="analyzePauseBtn">重新分析</button>
+          <button class="btn primary" id="applyPauseCutBtn">一键剪除气口</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="captionPresetModal">
+      <div class="dialog newdialog">
+        <h2>保存字幕样式</h2>
+        <label
+          >样式名称<input class="input" id="captionPresetName" maxlength="60"
+        /></label>
+        <div class="dialogactions">
+          <button class="btn" id="captionPresetCancel">取消</button>
+          <button class="btn primary" id="captionPresetConfirm">保存</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="sendResolveModal">
+      <div class="dialog">
+        <h2>发送到达芬奇</h2>
+        <p id="sendResolveSummary">正在准备字幕任务…</p>
+        <div class="progress exportprogress" id="sendResolveProgressWrap">
+          <span id="sendResolveBar"></span>
+        </div>
+        <div class="status" id="sendResolveStatus">准备发送……</div>
+        <pre id="sendResolveLog" style="display:none;max-height:140px;overflow:auto;margin:10px 0 0;padding:8px;border-radius:8px;background:#111;color:#d8d8d8;font-size:11px;white-space:pre-wrap"></pre>
+        <div class="dialogactions">
+          <button class="btn" id="openResolveLog" type="button">打开日志</button>
+          <button class="btn" id="closeSendResolve" type="button">关闭</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="exportModal">
+      <div class="dialog">
+        <h2>导出进度</h2>
+        <p id="exportSummary"></p>
+        <div class="progress exportprogress"><span id="exportBar"></span></div>
+        <div class="status" id="exportStatus">准备导出……</div>
+        <div class="dialogactions">
+          <button class="btn" id="cancelExport">关闭</button
+          ><button class="btn" id="revealExport" style="display: none">
+            在访达中显示
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>

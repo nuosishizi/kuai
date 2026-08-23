@@ -1,6 +1,6 @@
 ; QuickCut Windows Inno Setup Script
 #ifndef MyAppVersion
-  #define MyAppVersion "2.7.47"
+  #define MyAppVersion "2.7.53"
 #endif
 #ifndef SourceDir
   #define SourceDir "D:\QuickCut-win-pack\QuickCut-Windows-2.7.47"

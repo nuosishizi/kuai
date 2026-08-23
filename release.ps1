@@ -19,7 +19,7 @@ if ($status) {
 
 Write-Host "==> Running full test suite..." -ForegroundColor Cyan
 Push-Location "Modules/EditorRuntime/editor-desktop"
-node --test tests/alignment-status.test.mjs tests/script-judge.test.mjs tests/resolve-export.test.mjs tests/resolve-link.test.mjs tests/export-captions.test.mjs tests/timeline-edit.test.mjs tests/text-layout.test.mjs tests/ui-regressions.test.mjs tests/punctuation-quotes.test.mjs tests/denoise-isolation.test.mjs
+npm test
 if ($LASTEXITCODE -ne 0) {
   Pop-Location
   Write-Host "Tests failed! Aborting release." -ForegroundColor Red
