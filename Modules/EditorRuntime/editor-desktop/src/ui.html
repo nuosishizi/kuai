@@ -4615,7 +4615,7 @@
           </div>
         </div>
       </section>
-      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.49</footer>
+      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.50</footer>
     </div>
     <div class="context-menu" id="contextMenu"></div>
     <div class="dropveil" id="dropVeil">
@@ -5166,6 +5166,10 @@
         trackLocks: {},
         trackHeights: {},
         trackSolo: {},
+          trackMute: {},
+          trackAutoSelect: {},
+        trackMute: {},
+        trackAutoSelect: {},
         avLinked: true,
         snapping: true,
         selectionFollowsPlayhead: false,
@@ -6118,6 +6122,8 @@
           trackLocks: data.trackLocks || {},
           trackHeights: data.trackHeights || {},
           trackSolo: data.trackSolo || {},
+          trackMute: data.trackMute || {},
+          trackAutoSelect: data.trackAutoSelect || {},
           captionTransform: data.captionTransform || {
             x: 0,
             y: Math.round((Number(data.height) || 1920) * 0.28),
@@ -6554,9 +6560,7 @@
       let timelineCommandRunning = false;
       let timelineGestureBefore = null;
       function isTrackAutoSelected(trackId) {
-        if (!trackId) return false;
-        const track = (state.dynamicTracks || []).find((t) => t.id === trackId);
-        return track ? track.autoSelect !== false : true;
+        return state.trackAutoSelect?.[trackId] !== false;
       }
       function timelineCommandContext({ items = null, requireAutoSelect = false, includeLocked = false } = {}) {
         const requested = items || ((state.selectedItems || []).length ? state.selectedItems : [state.selected]);
@@ -6602,6 +6606,7 @@
       }
       function isTrackAudible(trackId) {
         if (state.trackVisibility?.[trackId] === false) return false;
+        if (state.trackMute?.[trackId] === true) return false;
         const solo = activeSoloTracks();
         return !solo.size || solo.has(trackId);
       }
@@ -10691,16 +10696,18 @@
               visible = state.trackVisibility[key] !== false,
               locked = isTrackLocked(key),
               soloed = !!state.trackSolo?.[key],
+              autoSelected = isTrackAutoSelected(key),
+              muted = !!state.trackMute?.[key],
               audioTrack = meta.kind === "audio";
             const symbol =
               key === "audio" ? (visible ? "🔊" : "🔇") : visible ? "◉" : "○";
             const remove = meta.deletable
               ? `<button class="trackdelete" data-delete-track="${key}" title="删除轨道">×</button>`
-              : "";
+              : `<button class="trackdelete disabled" disabled title="基础轨道不可删除">×</button>`;
             const labelTitle = key === "review"
               ? "待处理片段：点击试听，Alt+点击替换为识别口播，Ctrl+点击保留，Shift+点击删除"
               : meta.label;
-            return `<div class="tracklabel ${meta.className}" draggable="true" data-track-key="${key}"><span class="trackhandle">⠿</span><span class="dot" style="background:${meta.color}"></span><span class="ellipsis" title="${escapeHtml(labelTitle)}">${escapeHtml(meta.label)}</span>${remove}${audioTrack ? `<button class="tracksolo ${soloed ? "on" : ""}" data-solo-track="${key}" title="独听此轨">S</button><button class="trackheight" data-height-track="${key}" title="切换轨道高度">↕</button>` : ""}<button class="tracklock ${locked ? "on" : ""}" data-lock-track="${key}" title="${locked ? "解锁轨道" : "锁定轨道"}">${locked ? "🔒" : "🔓"}</button><button class="visibility ${visible ? "" : "off"}" data-toggle-track="${key}" title="${visible ? "关闭轨道" : "显示轨道"}">${symbol}</button></div>`;
+            return `<div class="tracklabel ${meta.className}" draggable="true" data-track-key="${key}"><span class="trackhandle" title="拖动调整轨道顺序">⠿</span><span class="dot" style="background:${meta.color}"></span><span class="ellipsis" title="${escapeHtml(labelTitle)}">${escapeHtml(meta.label)}</span><div class="track-controls"><button class="trackheight" data-height-delta="-12" data-height-track="${key}" title="降低轨道高度">−</button><button class="trackheight" data-height-delta="12" data-height-track="${key}" title="增加轨道高度">＋</button><button class="trackauto ${autoSelected ? "on" : ""}" data-auto-track="${key}" title="自动轨道选择器：决定选择后方、全选等命令是否作用于此轨">⇥</button>${audioTrack ? `<button class="trackmute ${muted ? "on" : ""}" data-mute-track="${key}" title="静音此轨">M</button><button class="tracksolo ${soloed ? "on" : ""}" data-solo-track="${key}" title="独听此轨">S</button>` : `<button disabled title="此轨道没有静音功能">M</button><button disabled title="此轨道没有独听功能">S</button>`}<button class="tracklock ${locked ? "on" : ""}" data-lock-track="${key}" title="${locked ? "解锁轨道" : "锁定轨道"}">${locked ? "🔒" : "🔓"}</button><button class="visibility ${visible ? "" : "off"}" data-toggle-track="${key}" title="${visible ? "关闭轨道" : "显示轨道"}">${symbol}</button>${remove}</div><span class="track-resize-grip" data-resize-track="${key}" title="拖动调节轨道高度；双击恢复默认高度"></span></div>`;
           })
           .join("");
         content.querySelectorAll(".trackrow[data-track-key]").forEach((row) => {
@@ -10722,13 +10729,13 @@
           );
           row.classList.toggle("locked-track", isTrackLocked(key));
           row.classList.toggle("solo-muted", trackInfo(key).kind === "audio" && !isTrackAudible(key));
-          const rowHeight = Math.max(34, Number(state.trackHeights?.[key] || 34));
+          const rowHeight = Math.max(40, Number(state.trackHeights?.[key] || 56));
           row.style.height = `${rowHeight}px`;
           if (tail) content.insertBefore(row, tail);
           else content.appendChild(row);
         }
         labels.querySelectorAll("[data-track-key]").forEach((label) => {
-          const rowHeight = Math.max(34, Number(state.trackHeights?.[label.dataset.trackKey] || 34));
+          const rowHeight = Math.max(40, Number(state.trackHeights?.[label.dataset.trackKey] || 56));
           label.style.height = `${rowHeight}px`;
           label.ondragstart = (event) => {
             event.dataTransfer.effectAllowed = "move";
@@ -10840,8 +10847,8 @@
               })
               .join("");
           }
-          const configuredHeight = Math.max(34, Number(state.trackHeights?.[key] || 34));
-          const laneHeight = `${Math.max(configuredHeight, laneCount > 1 ? 6 + laneCount * 27 : 34)}px`;
+          const configuredHeight = Math.max(40, Number(state.trackHeights?.[key] || 56));
+          const laneHeight = `${Math.max(configuredHeight, laneCount > 1 ? 6 + laneCount * 27 : 40)}px`;
           const gapSelection = timelineGapSelection?.trackId === key
             ? `<span class="timeline-gap-selection" data-selected-gap style="left:${timelineGapSelection.start * state.zoom}px;width:${Math.max(2, timelineGapSelection.duration * state.zoom)}px"></span>`
             : "";
@@ -15798,6 +15805,8 @@
           trackLocks: state.trackLocks,
           trackHeights: state.trackHeights,
           trackSolo: state.trackSolo,
+          trackMute: state.trackMute,
+          trackAutoSelect: state.trackAutoSelect,
           avLinked: state.avLinked,
           snapping: state.snapping,
           selectionFollowsPlayhead: state.selectionFollowsPlayhead,
@@ -16989,34 +16998,120 @@
         }
         event.preventDefault();
       });
+      let trackHeightDrag = null;
+      $("trackLabels").addEventListener("pointerdown", (event) => {
+        const grip = event.target.closest("[data-resize-track]");
+        if (!grip) return;
+        const key = grip.dataset.resizeTrack,
+          label = grip.closest(".tracklabel"),
+          current = Math.max(40, Number(state.trackHeights?.[key] || label?.offsetHeight || 56));
+        beginTimelineGesture();
+        trackHeightDrag = {
+          pointer: event.pointerId,
+          key,
+          label,
+          startY: event.clientY,
+          startHeight: current,
+        };
+        label?.classList.add("resizing");
+        grip.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      document.addEventListener("pointermove", (event) => {
+        if (!trackHeightDrag || trackHeightDrag.pointer !== event.pointerId) return;
+        const height = Math.round(clamp(
+          trackHeightDrag.startHeight + event.clientY - trackHeightDrag.startY,
+          40,
+          220,
+        ));
+        state.trackHeights ||= {};
+        state.trackHeights[trackHeightDrag.key] = height;
+        if (trackHeightDrag.label) trackHeightDrag.label.style.height = `${height}px`;
+        const row = $("timelineContent").querySelector(
+          `.trackrow[data-track-key="${trackHeightDrag.key}"]`,
+        );
+        if (row) {
+          row.style.height = `${height}px`;
+          row.querySelectorAll(".clip").forEach((clip) => {
+            clip.style.top = "3px";
+            clip.style.height = `${Math.max(33, height - 7)}px`;
+          });
+        }
+        event.preventDefault();
+      });
+      document.addEventListener("pointerup", (event) => {
+        if (!trackHeightDrag || trackHeightDrag.pointer !== event.pointerId) return;
+        trackHeightDrag.label?.classList.remove("resizing");
+        trackHeightDrag = null;
+        renderTimeline();
+        commitTimelineGesture();
+      });
+      $("trackLabels").addEventListener("dblclick", (event) => {
+        const grip = event.target.closest("[data-resize-track]");
+        if (!grip) return;
+        runTimelineCommand("恢复轨道默认高度", {
+          recompute: false,
+          render: "timeline",
+        }, () => {
+          state.trackHeights ||= {};
+          state.trackHeights[grip.dataset.resizeTrack] = 56;
+          return true;
+        });
+        event.preventDefault();
+      });
       $("trackLabels").onclick = (event) => {
+        const autoButton = event.target.closest("[data-auto-track]");
+        if (autoButton) {
+          const key = autoButton.dataset.autoTrack;
+          runTimelineCommand("切换自动轨道选择", { recompute: false, render: "timeline" }, () => {
+            state.trackAutoSelect ||= {};
+            state.trackAutoSelect[key] = !isTrackAutoSelected(key);
+            return true;
+          });
+          toast(`${trackInfo(key).label}自动选择已${state.trackAutoSelect[key] ? "开启" : "关闭"}`);
+          return;
+        }
+        const muteButton = event.target.closest("[data-mute-track]");
+        if (muteButton) {
+          const key = muteButton.dataset.muteTrack;
+          runTimelineCommand("切换轨道静音", { recompute: false }, () => {
+            state.trackMute ||= {};
+            state.trackMute[key] = !state.trackMute[key];
+            return true;
+          });
+          toast(`${trackInfo(key).label}已${state.trackMute[key] ? "静音" : "取消静音"}`);
+          return;
+        }
         const soloButton = event.target.closest("[data-solo-track]");
         if (soloButton) {
           const key = soloButton.dataset.soloTrack;
-          snapshot();
-          state.trackSolo ||= {};
-          state.trackSolo[key] = !state.trackSolo[key];
-          syncPreviewAudio();
-          renderAll();
+          runTimelineCommand("切换轨道独听", { recompute: false }, () => {
+            state.trackSolo ||= {};
+            state.trackSolo[key] = !state.trackSolo[key];
+            return true;
+          });
           return;
         }
         const heightButton = event.target.closest("[data-height-track]");
         if (heightButton) {
           const key = heightButton.dataset.heightTrack;
-          const sizes = [34, 68, 120, 180];
-          const current = Number(state.trackHeights?.[key] || 34);
-          state.trackHeights ||= {};
-          state.trackHeights[key] = sizes[(sizes.indexOf(current) + 1) % sizes.length] || 34;
-          renderTimeline();
-          queueAutosave();
+          const delta = Number(heightButton.dataset.heightDelta || 12);
+          const current = Number(state.trackHeights?.[key] || 56);
+          runTimelineCommand("调整轨道高度", { recompute: false, render: "timeline" }, () => {
+            state.trackHeights ||= {};
+            state.trackHeights[key] = clamp(current + delta, 40, 220);
+            return true;
+          });
           return;
         }
         const button = event.target.closest("[data-toggle-track]");
         if (!button) return;
         const key = button.dataset.toggleTrack;
-        snapshot();
-        state.trackVisibility[key] = state.trackVisibility[key] === false;
-        renderAll();
+        runTimelineCommand("切换轨道显示", { recompute: false }, () => {
+          state.trackVisibility[key] = state.trackVisibility[key] === false;
+          return true;
+        });
       };
       $("linkAV").onclick = () => {
         const previousAudioClips = mainAudioClips();
