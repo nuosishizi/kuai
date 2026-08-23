@@ -7884,7 +7884,6 @@
         if (!cuts.length) { toast("请选择两个或更多同轨、相邻且同源的音视频切片"); return false; }
         snapshot();
         const cutList = audioOnly ? (state.mainAudioManualCuts ||= [...(state.manualCuts || [])]) : state.manualCuts;
-            ...(state.timelineMarkers || []).map((marker) => Number(marker.time)),
         const oldSettings = { ...(audioOnly ? state.mainAudioClipSettings : state.mainVideoClipSettings) };
         const oldTracks = { ...(audioOnly ? state.mainAudioTrackMap : state.mainVideoTrackMap) };
         const oldOffsets = { ...(audioOnly ? state.mainAudioClipOffsets : state.mainVideoClipOffsets) };
@@ -18562,9 +18561,17 @@
       window.addEventListener(
         "wheel",
         (e) => {
-          if (!eventInTimelineZoomArea(e.target)) return;
+          const inTimeline = eventInTimelineZoomArea(e.target);
+          if (!inTimeline) return;
           const deltaPixels = e.deltaMode === 1 ? Number(e.deltaY || 0) * 16 : e.deltaMode === 2 ? Number(e.deltaY || 0) * 120 : Number(e.deltaY || 0);
-          if (e.ctrlKey || e.metaKey || e.altKey) {
+          if ((e.ctrlKey || e.metaKey) && inTimeline) {
+            preventBrowserPageZoom(e);
+            if (!wheelZoomFrame && Math.abs(wheelZoomTarget - Number(state.zoom || 60)) > 0.2) wheelZoomTarget = Number(state.zoom || 60);
+            wheelZoomTarget = Number.isFinite(wheelZoomTarget) ? wheelZoomTarget : Number(state.zoom || 60);
+            scheduleFluidTimelineZoom(deltaPixels, e.clientX);
+            return;
+          }
+          if (e.altKey && inTimeline) {
             preventBrowserPageZoom(e);
             if (!wheelZoomFrame && Math.abs(wheelZoomTarget - Number(state.zoom || 60)) > 0.2) wheelZoomTarget = Number(state.zoom || 60);
             wheelZoomTarget = Number.isFinite(wheelZoomTarget) ? wheelZoomTarget : Number(state.zoom || 60);
