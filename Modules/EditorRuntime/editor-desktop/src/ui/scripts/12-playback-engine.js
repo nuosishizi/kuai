@@ -1,19 +1,44 @@
-function renderAll() {
+      let activeVideo = null;
+      let standbyVideo = null;
+      let standbyPreloadedId = null;
+      let playbackAnimationFrame = 0;
+      let gapPlayback = null;
+      let sourceSeekGeneration = 0;
+
+      function getActiveVideo() {
+        if (!activeVideo) activeVideo = $("video");
+        return activeVideo || $("video");
+      }
+      function getStandbyVideo() {
+        if (!standbyVideo) standbyVideo = $("videoAlt");
+        return standbyVideo || $("videoAlt");
+      }
+      function syncDualVideoSources(url) {
+        const v1 = $("video");
+        const v2 = $("videoAlt");
+        if (!v1) return;
+        if (url) {
+          if (v1.dataset.sourceUrl !== url) {
+            v1.dataset.sourceUrl = url;
+            v1.src = url;
+          }
+          if (v2 && v2.dataset.sourceUrl !== url) {
+            v2.dataset.sourceUrl = url;
+            v2.src = url;
+          }
+          $("stage")?.classList.remove("empty");
+        } else {
+          v1.pause(); v1.removeAttribute("src"); v1.dataset.sourceUrl = ""; v1.load?.();
+          if (v2) { v2.pause(); v2.removeAttribute("src"); v2.dataset.sourceUrl = ""; v2.load?.(); }
+        }
+      }
+
+      function renderAll() {
         syncCaptionLineButtons();
         syncAuxSubtitleControls();
         normalizeSelection();
         ensureIndependentTransforms();
-        const primary = $("video");
-        if (state.video?.url && primary.dataset.sourceUrl !== state.video.url) {
-          primary.dataset.sourceUrl = state.video.url;
-          primary.src = state.video.url;
-          $("stage").classList.remove("empty");
-        } else if (!state.video && primary.dataset.sourceUrl) {
-          primary.pause();
-          primary.removeAttribute("src");
-          primary.dataset.sourceUrl = "";
-          primary.load?.();
-        }
+        syncDualVideoSources(state.video?.url || "");
         mediaList();
         renderPreviewObjects();
         renderTimeline();
@@ -25,19 +50,23 @@ function renderAll() {
         syncPreviewAudio();
         $("linkAV").classList.toggle("primary", state.avLinked);
         $("snapToggle").classList.toggle("primary", state.snapping);
-      if ($("selectionFollowsPlayhead")) $("selectionFollowsPlayhead").classList.toggle("active", state.selectionFollowsPlayhead);
+        if ($("selectionFollowsPlayhead")) $("selectionFollowsPlayhead").classList.toggle("active", state.selectionFollowsPlayhead);
         $("timecode").textContent =
           `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
         $("play").textContent = state.playing ? "❚❚" : "▶";
         syncFollowPlayheadButton();
         queueAutosave();
       }
+
       function seekTimeline(time) {
         state.currentTime = clamp(time, 0, visibleTimelineDuration());
-        if (state.video) {
+        const primary = getActiveVideo();
+        if (state.video && primary) {
           const source = timelineToSource(state.currentTime);
-          if (Math.abs($("video").currentTime - source) > 0.12)
-            $("video").currentTime = source;
+          if (Math.abs(primary.currentTime - source) > 0.08) {
+            primary.currentTime = source;
+          }
+          standbyPreloadedId = null;
         }
         renderPreviewObjects(false);
         syncPreviewAudio();
@@ -47,6 +76,7 @@ function renderAll() {
         keepPlayheadInView(state.playing ? "play" : "edge");
         if (state.selectionFollowsPlayhead && !state.playing) scheduleSelectionFollowsPlayhead();
       }
+
       let selectionFollowFrame = 0;
       function scheduleSelectionFollowsPlayhead() {
         if (selectionFollowFrame) return;
@@ -66,11 +96,37 @@ function renderAll() {
           renderTimeline(); renderPreviewObjects(); updateInspector();
         });
       }
-      let playbackAnimationFrame = 0;
-      let gapPlayback = null;
-      let sourceSeekGeneration = 0;
+
+      function swapDualVideo(targetTime) {
+        const cur = getActiveVideo();
+        const next = getStandbyVideo();
+        if (!next || !cur || next === cur) {
+          if (cur) cur.currentTime = targetTime;
+          return;
+        }
+        applyMediaPlaybackRate(next);
+        next.muted = cur.muted;
+        next.volume = cur.volume;
+        if (state.playing) {
+          next.play().catch(() => {});
+        }
+        cur.pause();
+        next.style.opacity = "1";
+        next.style.pointerEvents = "auto";
+        cur.style.opacity = "0";
+        cur.style.pointerEvents = "none";
+
+        activeVideo = next;
+        standbyVideo = cur;
+        standbyPreloadedId = null;
+
+        if (typeof drawBeautyPreview === "function" && beautyIsActive()) {
+          drawBeautyPreview();
+        }
+      }
+
       function jumpPlaybackSource(fromSource) {
-        const video = $("video");
+        const video = getActiveVideo();
         const target = skipDeadSource(fromSource);
         if (target <= fromSource + 0.012) return fromSource;
         if (video.seeking) return target;
@@ -84,6 +140,7 @@ function renderAll() {
         video.currentTime = target;
         return target;
       }
+
       function startPlaybackAnimationLoop() {
         if (playbackAnimationFrame) return;
         const tick = () => {
@@ -106,7 +163,7 @@ function renderAll() {
                 (c) => state.currentTime >= c.start && state.currentTime < c.end + 0.01,
               );
               if (clip) {
-                const video = $("video");
+                const video = getActiveVideo();
                 video.currentTime = clip.sourceStart;
                 if (video.paused) video.play().catch(() => {});
               }
@@ -115,7 +172,7 @@ function renderAll() {
             }
             if (state.currentTime >= state.duration - 0.03) {
               state.playing = false;
-              $("video").pause();
+              getActiveVideo().pause();
               $("play").textContent = "▶";
               playbackAnimationFrame = 0;
               gapPlayback = null;
@@ -129,21 +186,44 @@ function renderAll() {
             playbackAnimationFrame = requestAnimationFrame(tick);
             return;
           }
-          const video = $("video");
+
+          const video = getActiveVideo();
+          const standby = getStandbyVideo();
           const source = Number(video.currentTime || 0);
           const live = video.seeking ? skipDeadSource(source) : jumpPlaybackSource(source);
           state.currentTime = mapSourceTime(live);
-          // ── 检测是否进入了间隙 ──
+
           const clips = mainClips();
-          const inClip = clips.some(
+          const curIndex = clips.findIndex(
             (c) => state.currentTime >= c.start && state.currentTime < c.end + 0.01,
           );
+          const curClip = curIndex >= 0 ? clips[curIndex] : null;
+          const nextClip = curIndex >= 0 && curIndex < clips.length - 1 ? clips[curIndex + 1] : null;
+
+          // ── 达芬奇式双缓冲：提前 350ms 在备用解码器上预寻道下一切片首帧 ──
+          if (curClip && nextClip && standby && (curClip.end - state.currentTime) < 0.38) {
+            if (standbyPreloadedId !== nextClip.id) {
+              standbyPreloadedId = nextClip.id;
+              if (standby.src) {
+                standby.currentTime = nextClip.sourceStart;
+              }
+            }
+          }
+
+          // ── 切片接力瞬间：0ms 延迟无缝切换到备用视频 ──
+          if (curClip && nextClip && standby && state.currentTime >= curClip.end - 0.018) {
+            state.currentTime = nextClip.start;
+            swapDualVideo(nextClip.sourceStart);
+          }
+
+          // ── 检测是否进入了间隙 ──
+          const inClip = !!curClip;
           if (!inClip && state.currentTime < state.duration - 0.05) {
-            const nextClip = clips.find((c) => c.start > state.currentTime + 0.001);
-            if (nextClip) {
+            const nextUpcoming = clips.find((c) => c.start > state.currentTime + 0.001);
+            if (nextUpcoming) {
               video.pause();
               gapPlayback = {
-                gapEnd: nextClip.start,
+                gapEnd: nextUpcoming.start,
                 startWall: performance.now(),
                 startTimeline: state.currentTime,
               };
@@ -152,6 +232,7 @@ function renderAll() {
           if (state.currentTime >= state.duration - 0.03) {
             state.playing = false;
             video.pause();
+            if (standby) standby.pause();
             $("play").textContent = "▶";
             playbackAnimationFrame = 0;
             gapPlayback = null;
@@ -197,6 +278,7 @@ function renderAll() {
           select.value = String(val);
         }
         applyMediaPlaybackRate($("video"));
+        applyMediaPlaybackRate($("videoAlt"));
         for (const player of previewAudioPlayers.values()) {
           applyMediaPlaybackRate(player);
         }
@@ -219,7 +301,8 @@ function renderAll() {
         }
         shuttleSpeed = 0;
         if (pauseVideo && state.playing) {
-          $("video").pause();
+          getActiveVideo().pause();
+          getStandbyVideo()?.pause();
           state.playing = false;
           gapPlayback = null;
           $("play").textContent = "▶";
@@ -227,6 +310,7 @@ function renderAll() {
           renderPreviewObjects(false);
         }
         applyMediaPlaybackRate($("video"));
+        applyMediaPlaybackRate($("videoAlt"));
       }
       function handleShuttleKey(key) {
         if (!state.video) return;
@@ -247,11 +331,12 @@ function renderAll() {
           }
           if (!state.playing) {
             state.playing = true;
-            $("video").play().catch(() => {});
+            getActiveVideo().play().catch(() => {});
             startPlaybackAnimationLoop();
             $("play").textContent = "❚❚";
           }
           applyMediaPlaybackRate($("video"));
+          applyMediaPlaybackRate($("videoAlt"));
           toast(`⚡ 快进穿梭播放：${shuttleSpeed}x (L)`);
           return;
         }
@@ -259,11 +344,13 @@ function renderAll() {
           if (shuttleSpeed > 1) {
             shuttleSpeed = Math.floor(shuttleSpeed / 2);
             applyMediaPlaybackRate($("video"));
+            applyMediaPlaybackRate($("videoAlt"));
             toast(`⚡ 快进穿梭播放：${shuttleSpeed}x (L)`);
             return;
           }
           if (state.playing) {
-            $("video").pause();
+            getActiveVideo().pause();
+            getStandbyVideo()?.pause();
             state.playing = false;
             $("play").textContent = "▶";
           }
@@ -296,8 +383,10 @@ function renderAll() {
         }
         shuttleSpeed = 0;
         applyMediaPlaybackRate($("video"));
+        applyMediaPlaybackRate($("videoAlt"));
         if (state.playing) {
-          $("video").pause();
+          getActiveVideo().pause();
+          getStandbyVideo()?.pause();
           state.playing = false;
           gapPlayback = null;
           syncPreviewAudio();
@@ -321,7 +410,8 @@ function renderAll() {
         }
         state.playing = true;
         applyMediaPlaybackRate($("video"));
-        if (inClipAtPlay) await $("video").play();
+        applyMediaPlaybackRate($("videoAlt"));
+        if (inClipAtPlay) await getActiveVideo().play();
         keepPlayheadInView("play");
         updateBeautyPreviewState();
         startPlaybackAnimationLoop();
@@ -329,55 +419,65 @@ function renderAll() {
         renderPreviewObjects(false);
         $("play").textContent = "❚❚";
       }
-      $("video").onloadedmetadata = () => {
-        if (!state.video || !Number.isFinite($("video").duration)) return;
-        const duration = Number($("video").duration || 0);
-        if (duration <= 0 || Math.abs(duration - state.sourceDuration) < 0.01)
-          return;
-        state.sourceDuration = duration;
-        state.video.duration = duration;
-        state.video.analysisPending = !!state.video.analysisJobId;
-        recomputeContentDuration();
-        state.timelineDuration = Math.max(60, state.duration + 10);
-        renderAll();
-      };
-      $("video").onseeked = () => {
-        if (state.playing && !gapPlayback && $("video").paused) $("video").play().catch(() => {});
-        if (beautyIsActive() && !beautyFrameRequest)
-          beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
-      };
-      $("video").onloadeddata = () => {
-        if (beautyIsActive() && !beautyFrameRequest)
-          beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
-      };
-      $("video").ontimeupdate = () => {
-        if (!state.playing || $("video").seeking || gapPlayback) return;
-        const source = Number($("video").currentTime || 0);
-        if ((state.removals || []).some((range) => source >= range.start && source < range.end))
-          return;
-        state.currentTime = mapSourceTime(source);
-        if (state.currentTime >= state.duration - 0.03) {
+
+      function wireVideoEvents(v) {
+        if (!v) return;
+        v.onloadedmetadata = () => {
+          if (!state.video || !Number.isFinite(v.duration)) return;
+          const duration = Number(v.duration || 0);
+          if (duration <= 0 || Math.abs(duration - state.sourceDuration) < 0.01)
+            return;
+          state.sourceDuration = duration;
+          state.video.duration = duration;
+          state.video.analysisPending = !!state.video.analysisJobId;
+          recomputeContentDuration();
+          state.timelineDuration = Math.max(60, state.duration + 10);
+          renderAll();
+        };
+        v.onseeked = () => {
+          if (state.playing && !gapPlayback && v === getActiveVideo() && v.paused) {
+            v.play().catch(() => {});
+          }
+          if (beautyIsActive() && !beautyFrameRequest)
+            beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
+        };
+        v.onloadeddata = () => {
+          if (beautyIsActive() && !beautyFrameRequest)
+            beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
+        };
+        v.ontimeupdate = () => {
+          if (!state.playing || v !== getActiveVideo() || v.seeking || gapPlayback) return;
+          const source = Number(v.currentTime || 0);
+          if ((state.removals || []).some((range) => source >= range.start && source < range.end))
+            return;
+          state.currentTime = mapSourceTime(source);
+          if (state.currentTime >= state.duration - 0.03) {
+            if (state.loopPlayback) {
+              seekTimeline(0);
+            } else {
+              state.playing = false;
+              v.pause();
+              getStandbyVideo()?.pause();
+              $("play").textContent = "▶";
+            }
+          }
+          syncPreviewAudio();
+        };
+        v.onended = () => {
+          if (v !== getActiveVideo()) return;
           if (state.loopPlayback) {
             seekTimeline(0);
+            v.play().catch(() => {});
           } else {
             state.playing = false;
-            $("video").pause();
+            syncPreviewAudio();
+            renderPreviewObjects(false);
             $("play").textContent = "▶";
           }
-        }
-        syncPreviewAudio();
-      };
-      $("video").onended = () => {
-        if (state.loopPlayback) {
-          seekTimeline(0);
-          $("video").play().catch(() => {});
-        } else {
-          state.playing = false;
-          syncPreviewAudio();
-          renderPreviewObjects(false);
-          $("play").textContent = "▶";
-        }
-      };
+        };
+      }
+      wireVideoEvents($("video"));
+      wireVideoEvents($("videoAlt"));
       const previewAudioPlayers = new Map();
       function previewAudioPlayer(key, url) {
         let player = previewAudioPlayers.get(key);
@@ -436,9 +536,12 @@ function renderAll() {
             Number(state.audio.volume ?? 1) *
             Number(mainSettings?.volume ?? 1) *
             clipFadeGain(mainSettings, mainClip, state.currentTime);
-        $("video").muted =
-          !mainTrackVisible || !state.avLinked || !!mainMuted || !!state.denoisedAudio || !!rulerScrub;
-        $("video").volume = clamp(mainGain, 0, 1);
+        const vMuted = !mainTrackVisible || !state.avLinked || !!mainMuted || !!state.denoisedAudio || !!rulerScrub;
+        const vVol = clamp(mainGain, 0, 1);
+        const v1 = $("video");
+        const v2 = $("videoAlt");
+        if (v1) { v1.muted = vMuted; v1.volume = vVol; }
+        if (v2) { v2.muted = vMuted; v2.volume = vVol; }
         const main = previewAudioPlayer(
           "main",
           state.denoisedAudio?.url || state.video?.url || "",

@@ -49,7 +49,18 @@ function applyVideoCss() {
         // URL; in that case beauty controls must still change the picture.
         // 美颜失败时宁可显示原片，也不再用全画面 blur/brightness 伪造美颜，避免天空和背景一起变亮变糊。
         const beautyFallback = "";
-        $("video").style.filter = `${previewFilter}${beautyFallback}`;
+        const v1 = $("video");
+        const v2 = $("videoAlt");
+        if (v1) {
+          v1.style.filter = `${previewFilter}${beautyFallback}`;
+          v1.muted = state.trackVisibility.audio === false;
+          applyMediaPlaybackRate(v1);
+        }
+        if (v2) {
+          v2.style.filter = `${previewFilter}${beautyFallback}`;
+          v2.muted = state.trackVisibility.audio === false;
+          applyMediaPlaybackRate(v2);
+        }
         $("beautyPreviewCanvas").style.filter = previewFilter;
         document
           .querySelectorAll(".layer-video")
@@ -58,8 +69,6 @@ function applyVideoCss() {
           "--vignette-opacity",
           String(Math.min(0.9, Number(c.vignette || 0) / 105)),
         );
-        $("video").muted = state.trackVisibility.audio === false;
-        applyMediaPlaybackRate($("video"));
         updateBeautyPreviewState();
       }
       let beautyGL = null, beautyGLUnavailable = false,
@@ -127,9 +136,9 @@ function applyVideoCss() {
         }
       }
       function drawBeautyPreview(now = performance.now()) {
-        beautyFrameRequest = 0;
-        const canvas = $("beautyPreviewCanvas"), video = $("video");
-        if (!beautyIsActive() || !state.video || video.readyState < 2) return;
+        const canvas = $("beautyPreviewCanvas");
+        const video = (typeof getActiveVideo === "function") ? getActiveVideo() : $("video");
+        if (!beautyIsActive() || !state.video || !video || video.readyState < 2) return;
         if (now - beautyLastDraw < 32) { beautyFrameRequest = requestAnimationFrame(drawBeautyPreview); return; }
         beautyLastDraw = now;
         const engine = ensureBeautyGL();
@@ -219,9 +228,11 @@ function applyVideoCss() {
       }
 
       function updateBeautyPreviewState() {
-        const canvas = $("beautyPreviewCanvas"), video = $("video"), active = beautyIsActive();
+        const canvas = $("beautyPreviewCanvas");
+        const video = (typeof getActiveVideo === "function") ? getActiveVideo() : $("video");
+        const active = beautyIsActive();
         canvas.style.display = active ? "block" : "none";
-        if (!active) { canvas.classList.remove("ready"); if (beautyFrameRequest) cancelAnimationFrame(beautyFrameRequest); beautyFrameRequest = 0; return; }
+        if (!active || !video) { canvas.classList.remove("ready"); if (beautyFrameRequest) cancelAnimationFrame(beautyFrameRequest); beautyFrameRequest = 0; return; }
         canvas.style.transform = video.style.transform; canvas.style.opacity = video.style.opacity || "1";
         canvas.style.mixBlendMode = video.style.mixBlendMode || "normal";
         if (!beautyFrameRequest) beautyFrameRequest = requestAnimationFrame(drawBeautyPreview);
