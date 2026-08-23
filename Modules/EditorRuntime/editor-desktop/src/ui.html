@@ -1538,6 +1538,12 @@
       .marker.missing {
         background: var(--violet);
       }
+      .marker.timeline-marker {
+        background: #5aaddc;
+        width: 2px;
+        height: 100%;
+        z-index: 9;
+      }
       .playhead {
         position: absolute;
         top: 0;
@@ -3321,6 +3327,95 @@
         height: 22px;
         line-height: 1;
       }
+
+      /* DaVinci-inspired timeline surface */
+      :root {
+        --timeline: 350px;
+        --track-label-width: 258px;
+        --timeline-toolbar-h: 52px;
+        --timeline-ruler-h: 40px;
+        --timeline-track-h: 56px;
+        --timeline-bg: #202126;
+        --timeline-panel: #1c1d21;
+        --timeline-lane: #24252a;
+        --timeline-line: #34353a;
+      }
+      .timeline {
+        grid-template-rows: var(--timeline-toolbar-h) minmax(0, 1fr);
+        background: var(--timeline-bg);
+        border-top: 1px solid #090a0b;
+        box-shadow: inset 0 1px #3a3b40;
+      }
+      .timelinebar {
+        height: var(--timeline-toolbar-h);
+        grid-template-columns: max(275px, var(--track-label-width)) 2px minmax(0, 1fr);
+        border-bottom: 1px solid #0c0d0f;
+        background: #1d1e22;
+      }
+      .timelinebar-left { padding: 0 13px; gap: 5px; background: #1d1e22; border-right: 1px solid #393a3f; }
+      .timelinebar-divider, .track-resizer { background: #0d0e10; }
+      .timelinebar-tools { padding: 0 12px 0 14px; background: #1e1f23; }
+      .timeline-center-tools { gap: 3px; }
+      .timeline-right-tools { gap: 4px; }
+      .timelinebar-tools .iconbtn, .timelinebar-left .iconbtn {
+        width: 30px; height: 30px; color: #a6a8ad; border-color: transparent; background: transparent; border-radius: 3px;
+      }
+      .timelinebar-tools .iconbtn:hover, .timelinebar-left .iconbtn:hover { background: #303136; color: #f0f1f2; }
+      .timelinebar-left #pauseCut { height: 28px; color: #cfd0d3; border-color: #414247; background: #28292d; border-radius: 4px; }
+      #selectTool.active, #trimTool.active, #bladeTool.active { color: #f2574f !important; background: transparent !important; border-color: transparent !important; }
+      #snapToggle.active, #linkAV.active, #selectionFollowsPlayhead.active { color: #f4f4f5 !important; background: transparent !important; border-color: transparent !important; }
+      .tool-separator { height: 27px; background: #3b3c41; margin: 0 7px; }
+      .timelinebody { grid-template-columns: max(275px, var(--track-label-width)) 2px minmax(0, 1fr); background: var(--timeline-bg); }
+      .tracklabels-col { background: #1d1e22; border-right: 1px solid #090a0b; }
+      .ruler-spacer, .ruler-bar { flex: 0 0 var(--timeline-ruler-h); height: var(--timeline-ruler-h); background: #1d1e22; border-bottom: 1px solid #101114; }
+      .ruler-spacer { justify-content: center; padding: 0 12px; font: 700 20px/1 ui-monospace, "SFMono-Regular", Consolas, monospace; color: #d7d8db; letter-spacing: -.7px; }
+      .ruler { height: var(--timeline-ruler-h); }
+      .tick { bottom: 5px; height: 18px; padding-left: 5px; color: #a8a9ad; border-left-color: #5a5b60; font-size: 9px; }
+      .tick.minor { height: 10px; border-left-color: #48494e; }
+      .tick.micro { height: 5px; border-left-color: #38393e; }
+      .scroll, .timeline-main { background: var(--timeline-lane); }
+      .timeline-main { overflow: hidden; }
+      .timeline-main .scroll { overflow-x: auto; overflow-y: hidden !important; scrollbar-gutter: auto; overscroll-behavior-x: contain; }
+      .timelinecontent { min-height: 100%; height: max-content; background-color: var(--timeline-lane); }
+      .tracklabels { background: #1d1e22; }
+      .tracklabel, .trackrow { min-height: 40px; border-bottom: 1px solid #15161a; box-shadow: inset 0 -1px #35363b; }
+      .tracklabel { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: 23px 25px; gap: 0 4px; padding: 4px 8px 3px 12px; color: #d0d1d4; background: #202126; }
+      .tracklabel .trackhandle { grid-column: 1; grid-row: 1; align-self: center; color: #777981; }
+      .tracklabel .dot { display: none; }
+      .tracklabel .ellipsis { grid-column: 2; grid-row: 1; align-self: end; font-size: 12px; font-weight: 600; }
+      .tracklabel .ellipsis::after { display: none; }
+      .track-controls { grid-column: 1 / 3; grid-row: 2; display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+      .tracklabel .track-controls button { display: inline-grid; place-items: center; width: 27px; min-width: 27px; height: 22px; padding: 0; color: #a4a6ac; background: #292a2f; border: 1px solid #3a3b41; border-radius: 3px; opacity: 1; font-size: 11px; }
+      .tracklabel .track-controls button:hover { color: #fff; background: #383a40; }
+      .tracklabel .track-controls .trackheight { font-size: 15px; line-height: 1; }
+      .tracklabel .track-controls .trackauto.on { color: #f5f7fa; background: #3e667e; border-color: #5792b5; }
+      .tracklabel .track-controls .trackmute.on { color: #1b1c20; background: #efb84d; border-color: #ffd073; font-weight: 800; }
+      .tracklabel .track-controls .trackdelete { color: #d98a8e; }
+      .tracklabel .track-controls .trackdelete:hover { color: #fff; background: #a13d43; }
+      .tracklabel .track-controls .trackdelete.disabled { color: #595b61; cursor: not-allowed; background: #24252a; }
+      .tracklabel.audio { border-left: 3px solid #489d74; }
+      .tracklabel.video { border-left: 3px solid #438fc0; }
+      .tracklabel.image { border-left: 3px solid #6b8fbd; }
+      .tracklabel.caption { border-left: 3px solid #b079a3; }
+      .track-resize-grip { position: absolute; left: 0; right: 0; bottom: -3px; height: 7px; z-index: 8; cursor: ns-resize; }
+      .track-resize-grip:hover, .tracklabel.resizing .track-resize-grip { background: rgba(82, 169, 221, .72); }
+      .clip { top: 3px; height: calc(var(--timeline-track-h) - 7px); padding: 5px 7px; border-radius: 2px; border: 1px solid #101113; box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); font-size: 11px; }
+      .clip.video { background: #477da2; }
+      .clip.audio { background: #408b68; }
+      .clip.image { background: #477a9d; }
+      .clip.text { background: #816b3f; }
+      .clip.caption { background: #76556f; }
+      .clip.selected { outline: 1px solid #73c9ff; outline-offset: -1px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 0 1px #090a0b; }
+      .trim-handle { width: 14px; background: transparent; }
+      .trim-handle::after { content: ""; position: absolute; top: 5px; bottom: 5px; width: 2px; border-radius: 2px; background: transparent; }
+      .trim-handle.start::after { left: 2px; }
+      .trim-handle.end::after { right: 2px; }
+      .clip:hover .trim-handle::after, .clip.selected .trim-handle::after { background: rgba(255,255,255,.82); }
+      .timeline.drag .clip { cursor: grabbing; }
+      .playhead { width: 2px; background: #ff4d45; z-index: 80; box-shadow: 0 0 0 1px rgba(70,0,0,.45), 0 0 6px rgba(255,77,69,.6); }
+      .playhead:before { left: -6px; border-left-width: 7px; border-right-width: 7px; border-top: 10px solid #ff4d45; filter: drop-shadow(0 1px 1px #000); }
+      .zoom { accent-color: #8d8f94; }
+      @media (max-height: 780px) { :root { --timeline: 310px; --timeline-track-h: 48px; } }
     </style>
   </head>
   <body>
@@ -4415,6 +4510,8 @@
               ><button class="btn iconbtn active" id="linkAV" title="音画联动选择：成组音画一起移动和删除">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
               </button>
+              <button class="btn iconbtn" id="selectionFollowsPlayhead" title="播放头跟随选择">⇥</button>
+              <button class="btn iconbtn" id="mergeClips" title="合并所选相邻切片">⛙</button>
 
               <span class="tool-separator"></span>
 
@@ -4518,7 +4615,7 @@
           </div>
         </div>
       </section>
-      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.48</footer>
+      <footer class="appfooter">© 2026 HX · 版权所有及最终解释权归 HX 所有 · 仅供本人及朋友非商业使用 · 快剪 QuickCut v2.7.49</footer>
     </div>
     <div class="context-menu" id="contextMenu"></div>
     <div class="dropveil" id="dropVeil">
@@ -5071,6 +5168,8 @@
         trackSolo: {},
         avLinked: true,
         snapping: true,
+        selectionFollowsPlayhead: false,
+        timelineMarkers: [],
         captionLines: 1,
         captionStyle: {
           fontFamily: "Helvetica",
@@ -5854,6 +5953,8 @@
           trackSolo: {},
           avLinked: true,
           snapping: true,
+          selectionFollowsPlayhead: false,
+          timelineMarkers: [],
           captionLines: 1,
           captionStyle: {
             fontFamily: "Helvetica",
@@ -6083,6 +6184,8 @@
           denoisedAudio: migrateDenoisedAudio(data.denoisedAudio),
           selected: { type: "video", id: "main" },
           selectedItems: [],
+          selectionFollowsPlayhead: data.selectionFollowsPlayhead === true,
+          timelineMarkers: Array.isArray(data.timelineMarkers) ? data.timelineMarkers : [],
           timelineDuration: Math.max(60, Number(data.timelineDuration || data.duration || 0) + 10),
           layout: {
             side: 310,
@@ -6448,6 +6551,48 @@
       function isTrackLocked(trackId) {
         return !!state.trackLocks?.[trackId];
       }
+      let timelineCommandRunning = false;
+      let timelineGestureBefore = null;
+      function isTrackAutoSelected(trackId) {
+        if (!trackId) return false;
+        const track = (state.dynamicTracks || []).find((t) => t.id === trackId);
+        return track ? track.autoSelect !== false : true;
+      }
+      function timelineCommandContext({ items = null, requireAutoSelect = false, includeLocked = false } = {}) {
+        const requested = items || ((state.selectedItems || []).length ? state.selectedItems : [state.selected]);
+        const resolved = expandLinkedSelection(resolveWorkingSelection(requested));
+        const targets = resolved.filter((item) => {
+          const trackId = selectionTrackId(item.type, item.id);
+          if (!includeLocked && isTrackLocked(trackId)) return false;
+          if (requireAutoSelect && !isTrackAutoSelected(trackId)) return false;
+          return true;
+        });
+        return { time: Number(state.currentTime || 0), tool: editTool, linked: state.avLinked, snapping: state.snapping, requested, targets, targetTracks: [...new Set(targets.map((item) => selectionTrackId(item.type, item.id)))] };
+      }
+      function runTimelineCommand(name, options = {}, mutate) {
+        if (timelineCommandRunning || typeof mutate !== "function") return false;
+        timelineCommandRunning = true;
+        const before = JSON.stringify(projectData()), context = timelineCommandContext(options);
+        try {
+          const result = mutate(context);
+          const changed = result !== false && JSON.stringify(projectData()) !== before;
+          if (!changed) return false;
+          state.undo.push(before); state.redo = [];
+          if (state.undo.length > 30) state.undo.shift();
+          if (options.recompute !== false) recomputeContentDuration();
+          if (options.render === "timeline") { renderTimeline(); renderPreviewObjects(); updateInspector(); }
+          else if (options.render === "ruler") renderRuler();
+          else renderAll();
+          if (options.autosave !== false) queueAutosave();
+          return true;
+        } catch (error) {
+          applyHistoryState(JSON.parse(before));
+          console.error(`时间线命令失败：${name}`, error);
+          toast(`${name}失败，操作已自动回滚`);
+          return false;
+        } finally { timelineCommandRunning = false; }
+      }
+
       function activeSoloTracks() {
         return new Set(
           Object.entries(state.trackSolo || {})
@@ -7640,6 +7785,124 @@
         }
         return [...points].sort((a, b) => a - b);
       }
+      function selectedJoinCuts(clips = [], selectedIds = [], tolerance = 0.012) {
+        const ids = new Set(selectedIds);
+        const relevant = clips.filter((clip) => ids.has(clip.id));
+        const cuts = [];
+        for (const clip of relevant) {
+          const neighbor = relevant.find((other) => other !== clip && Math.abs(Number(other.sourceStart) - Number(clip.sourceEnd)) < tolerance);
+          if (neighbor) cuts.push(Number(clip.sourceEnd));
+        }
+        return [...new Set(cuts)];
+      }
+      function nudgeSelectedClips(deltaSeconds) {
+        const selected = expandLinkedSelection(resolveWorkingSelection((state.selectedItems || []).length ? state.selectedItems : [state.selected])).filter((item) => !isTrackLocked(selectionTrackId(item.type, item.id)));
+        if (!selected.length) { toast("请先选择要微移的切片"); return false; }
+        const starts = selected.map((item) => {
+          if (item.type === "video") return mainClips().find((clip) => clip.id === item.id)?.start;
+          if (item.type === "audio") return mainAudioClips().find((clip) => clip.id === item.id || clip.parentId === item.id)?.start;
+          return timelineObjectFor(item.type, item.id)?.start;
+        }).filter(Number.isFinite);
+        if (!starts.length) return false;
+        const applied = Math.max(Number(deltaSeconds || 0), -Math.min(...starts));
+        if (Math.abs(applied) < 1e-8) return false;
+        const changed = runTimelineCommand("逐帧微移", { items: selected, render: "timeline" }, (context) => {
+          const processedMain = new Set(), processedObjects = new Set();
+          state.mainVideoClipOffsets ||= {}; state.mainAudioClipOffsets ||= {};
+          for (const item of context.targets) {
+            if (item.type === "video") {
+              const clip = mainClips().find((entry) => entry.id === item.id);
+              if (!clip || processedMain.has(`v:${clip.id}`)) continue;
+              state.mainVideoClipOffsets[clip.id] = Number(state.mainVideoClipOffsets[clip.id] || 0) + applied;
+              processedMain.add(`v:${clip.id}`);
+              if (state.avLinked) { state.mainAudioClipOffsets[clip.id] = Number(state.mainAudioClipOffsets[clip.id] || 0) + applied; processedMain.add(`a:${clip.id}`); }
+              continue;
+            }
+            if (item.type === "audio") {
+              const clip = mainAudioClips().find((entry) => entry.id === item.id || entry.parentId === item.id), id = clip?.parentId || clip?.id;
+              if (!id || processedMain.has(`a:${id}`)) continue;
+              state.mainAudioClipOffsets[id] = Number(state.mainAudioClipOffsets[id] || 0) + applied;
+              processedMain.add(`a:${id}`);
+              if (state.avLinked) { state.mainVideoClipOffsets[id] = Number(state.mainVideoClipOffsets[id] || 0) + applied; processedMain.add(`v:${id}`); }
+              continue;
+            }
+            const object = timelineObjectFor(item.type, item.id), key = `${item.type}:${item.id}`;
+            if (!object || processedObjects.has(key)) continue;
+            object.start = Math.max(0, Number(object.start || 0) + applied);
+            object.end = Math.max(object.start + 0.002, Number(object.end || 0) + applied);
+            if (Array.isArray(object.words)) { for (const word of object.words) { word.start = Math.max(0, Number(word.start || 0) + applied); word.end = Math.max(word.start, Number(word.end || 0) + applied); } }
+            processedObjects.add(key);
+          }
+          return true;
+        });
+        if (changed) toast(`切片已${applied < 0 ? "左移" : "右移"} ${Math.round(Math.abs(applied) / frameDuration())} 帧`);
+        return changed;
+      }
+      function addTimelineMarker() {
+        const time = Number(state.currentTime || 0), existing = (state.timelineMarkers || []).find((marker) => Math.abs(Number(marker.time || 0) - time) <= frameDuration() / 2);
+        const changed = runTimelineCommand("添加时间线标记", { recompute: false, render: "ruler" }, () => {
+          if (existing) existing.label = `标记 ${formatTimecode(time)}`;
+          else { state.timelineMarkers ||= []; state.timelineMarkers.push({ id: crypto.randomUUID(), time, label: `标记 ${state.timelineMarkers.length + 1}` }); state.timelineMarkers.sort((a, b) => Number(a.time) - Number(b.time)); }
+          return true;
+        });
+        if (changed) toast(`${existing ? "已更新" : "已添加"}标记 ${formatTimecode(time)}`);
+      }
+      function jumpTimelineMarker(direction = "next") {
+        const markers = [...(state.timelineMarkers || [])].sort((a, b) => Number(a.time) - Number(b.time));
+        if (!markers.length) { toast("时间线上还没有标记"); return; }
+        const current = Number(state.currentTime || 0);
+        const marker = direction === "prev" ? [...markers].reverse().find((item) => Number(item.time) < current - frameDuration() / 2) : markers.find((item) => Number(item.time) > current + frameDuration() / 2);
+        const target = marker || (direction === "prev" ? markers.at(-1) : markers[0]);
+        seekTimeline(Number(target.time || 0));
+        toast(`${direction === "prev" ? "上一个" : "下一个"}标记：${target.label}`);
+      }
+      function deleteTimelineMarkerAtPlayhead() {
+        const markers = state.timelineMarkers || [];
+        if (!markers.length) return;
+        let index = -1, distance = Infinity;
+        markers.forEach((marker, i) => { const d = Math.abs(Number(marker.time || 0) - Number(state.currentTime || 0)); if (d < distance) { distance = d; index = i; } });
+        if (index < 0 || distance > Math.max(frameDuration(), snapThresholdSeconds())) { toast("把播放头停在标记上再删除"); return; }
+        let removed = null;
+        const changed = runTimelineCommand("删除时间线标记", { recompute: false, render: "ruler" }, () => { [removed] = markers.splice(index, 1); return !!removed; });
+        if (changed) toast(`已删除${removed.label || "标记"}`);
+      }
+      function mergeSelectedClips() {
+        if (!timelineCommandRunning) return runTimelineCommand("合并切片", { render: "timeline" }, () => mergeSelectedClips());
+        const selected = expandLinkedSelection(state.selectedItems || []);
+        const videoIds = selected.filter((item) => item.type === "video").map((item) => item.id);
+        const audioIds = selected.filter((item) => item.type === "audio").map((item) => item.id);
+        const audioOnly = !state.avLinked && !videoIds.length && audioIds.length > 1;
+        const previous = audioOnly ? mainAudioClips() : mainClips();
+        const ids = audioOnly ? audioIds : videoIds;
+        const cuts = selectedJoinCuts(previous, ids).filter((cut) => {
+          const left = previous.find((clip) => Math.abs(Number(clip.sourceEnd) - cut) < 0.012);
+          const right = previous.find((clip) => Math.abs(Number(clip.sourceStart) - cut) < 0.012);
+          if (!left || !right) return false;
+          const trackMap = audioOnly ? state.mainAudioTrackMap : state.mainVideoTrackMap;
+          return (trackMap?.[left.id] || (audioOnly ? "audio" : "video")) === (trackMap?.[right.id] || (audioOnly ? "audio" : "video"));
+        });
+        if (!cuts.length) { toast("请选择两个或更多同轨、相邻且同源的音视频切片"); return false; }
+        snapshot();
+        const cutList = audioOnly ? (state.mainAudioManualCuts ||= [...(state.manualCuts || [])]) : state.manualCuts;
+            ...(state.timelineMarkers || []).map((marker) => Number(marker.time)),
+        const oldSettings = { ...(audioOnly ? state.mainAudioClipSettings : state.mainVideoClipSettings) };
+        const oldTracks = { ...(audioOnly ? state.mainAudioTrackMap : state.mainVideoTrackMap) };
+        const oldOffsets = { ...(audioOnly ? state.mainAudioClipOffsets : state.mainVideoClipOffsets) };
+        const kept = cutList.filter((cut) => !cuts.some((merged) => Math.abs(Number(cut) - merged) < 0.012));
+        if (audioOnly) state.mainAudioManualCuts = kept; else state.manualCuts = kept;
+        const next = audioOnly ? mainAudioClips() : mainClips();
+        const settings = {}, tracks = {}, offsets = {};
+        for (const clip of next) { const prior = matchClipBySource(clip, previous); if (!prior) continue; if (oldSettings[prior.id]) settings[clip.id] = { ...oldSettings[prior.id] }; if (oldTracks[prior.id]) tracks[clip.id] = oldTracks[prior.id]; if (Math.abs(Number(oldOffsets[prior.id] || 0)) > 0.001) offsets[clip.id] = Number(oldOffsets[prior.id]); }
+        if (audioOnly) { state.mainAudioClipSettings = settings; state.mainAudioTrackMap = tracks; state.mainAudioClipOffsets = offsets; }
+        else { state.mainVideoClipSettings = settings; state.mainVideoTrackMap = tracks; state.mainVideoClipOffsets = offsets; }
+        const merged = (audioOnly ? mainAudioClips() : mainClips()).filter((clip) => previous.some((old) => ids.includes(old.id) && Number(clip.sourceStart) <= Number(old.sourceStart) + 0.012 && Number(clip.sourceEnd) >= Number(old.sourceEnd) - 0.012));
+        state.selectedItems = merged.flatMap((clip) => state.avLinked ? [{ type: "video", id: clip.id }, { type: "audio", id: clip.id }] : [{ type: audioOnly ? "audio" : "video", id: clip.id }]);
+        state.selected = state.selectedItems[0] || { type: "video", id: "main" };
+        renderAll(); queueAutosave();
+        toast(`已合并 ${cuts.length + 1} 个相邻音视频切片`);
+        return true;
+      }
+
       function jumpToCutPoint(direction) {
         const cuts = collectAllCutPoints();
         const current = Number(Number(state.currentTime || 0).toFixed(3));
@@ -10413,6 +10676,8 @@
         }
         for (const issue of state.issues)
           html += `<span class="marker ${issue.type}" data-issue="${issue.id}" title="${issue.label}" style="left:${issue.start * state.zoom}px"></span>`;
+        for (const marker of state.timelineMarkers || [])
+          html += `<span class="marker timeline-marker" data-timeline-marker="${escapeHtml(marker.id)}" title="${escapeHtml(marker.label || '时间线标记')} ${formatTimecode(Number(marker.time || 0))}" style="left:${Number(marker.time) * state.zoom}px"></span>`;
         html += `<span class="trackend" style="left:${state.duration * state.zoom}px"></span>`;
         ruler.innerHTML = html;
         syncTimelineChrome();
@@ -12099,6 +12364,7 @@
         syncPreviewAudio();
         $("linkAV").classList.toggle("primary", state.avLinked);
         $("snapToggle").classList.toggle("primary", state.snapping);
+      if ($("selectionFollowsPlayhead")) $("selectionFollowsPlayhead").classList.toggle("active", state.selectionFollowsPlayhead);
         $("timecode").textContent =
           `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
         $("play").textContent = state.playing ? "❚❚" : "▶";
@@ -12118,6 +12384,26 @@
         $("timecode").textContent =
           `${formatTime(state.currentTime)} / ${formatTime(state.duration)}`;
         keepPlayheadInView(state.playing ? "play" : "edge");
+        if (state.selectionFollowsPlayhead && !state.playing) scheduleSelectionFollowsPlayhead();
+      }
+      let selectionFollowFrame = 0;
+      function scheduleSelectionFollowsPlayhead() {
+        if (selectionFollowFrame) return;
+        selectionFollowFrame = requestAnimationFrame(() => {
+          selectionFollowFrame = 0;
+          if (!state.selectionFollowsPlayhead || state.playing) return;
+          const candidates = clipsUnderPlayhead(state.currentTime).filter((item) => {
+            const trackId = selectionTrackId(item.type, item.id);
+            return isTrackAutoSelected(trackId) && state.trackVisibility?.[trackId] !== false;
+          }).sort((a, b) => state.trackOrder.indexOf(selectionTrackId(a.type, a.id)) - state.trackOrder.indexOf(selectionTrackId(b.type, b.id)));
+          if (!candidates.length) return;
+          const next = expandLinkedSelection([candidates[0]]).filter((item) => isTrackAutoSelected(selectionTrackId(item.type, item.id)));
+          const before = (state.selectedItems || []).map((item) => `${item.type}:${item.id}`).sort().join("|");
+          const after = next.map((item) => `${item.type}:${item.id}`).sort().join("|");
+          if (before === after) return;
+          state.selectedItems = next; state.selected = next[0] || state.selected;
+          renderTimeline(); renderPreviewObjects(); updateInspector();
+        });
       }
       let playbackAnimationFrame = 0;
       let gapPlayback = null;
@@ -15515,6 +15801,8 @@
           trackSolo: state.trackSolo,
           avLinked: state.avLinked,
           snapping: state.snapping,
+          selectionFollowsPlayhead: state.selectionFollowsPlayhead,
+          timelineMarkers: state.timelineMarkers,
           captionLines: state.captionLines,
           captionStyle: state.captionStyle,
           color: state.color,
@@ -16639,6 +16927,7 @@
             { label: "在播放头切割经过的片段", action: () => splitSelected() },
             { label: "删除所选片段", danger: true, action: () => deleteSelected(false) },
             { label: "删除并前移", danger: true, action: () => deleteSelected(true) },
+            { label: "合并所选相邻切片", action: () => mergeSelectedClips() },
           ]);
           return;
         }
@@ -16752,6 +17041,16 @@
         queueAutosave();
       };
       $("snapToggle").onclick = toggleSnapping;
+      if ($("selectionFollowsPlayhead")) {
+        $("selectionFollowsPlayhead").onclick = () => {
+          state.selectionFollowsPlayhead = !state.selectionFollowsPlayhead;
+          $("selectionFollowsPlayhead").classList.toggle("active", state.selectionFollowsPlayhead);
+          if (state.selectionFollowsPlayhead) scheduleSelectionFollowsPlayhead();
+          queueAutosave();
+          toast(`播放头跟随选择已${state.selectionFollowsPlayhead ? "开启" : "关闭"}`);
+        };
+      }
+      if ($("mergeClips")) $("mergeClips").onclick = mergeSelectedClips;
       $("stepBack").onclick = () => seekTimeline(state.currentTime - 1 / 30);
       $("stepForward").onclick = () => seekTimeline(state.currentTime + 1 / 30);
       if ($("jumpPrevCut")) $("jumpPrevCut").onclick = () => jumpToCutPoint("prev");
@@ -17088,7 +17387,13 @@
         });
       }
       $("ruler").onpointerdown = (event) => {
-        const marker = event.target.closest("[data-issue]");
+        const timelineMarker = event.target.closest("[data-timeline-marker]");
+          if (timelineMarker) {
+            const m = (state.timelineMarkers || []).find((item) => item.id === timelineMarker.dataset.timelineMarker);
+            if (m) seekTimeline(Number(m.time || 0));
+            return;
+          }
+          const marker = event.target.closest("[data-issue]");
         if (marker) {
           selectIssue(marker.dataset.issue);
           event.preventDefault();
@@ -17439,10 +17744,37 @@
         };
         e.preventDefault();
       };
+      function autoScrollTimelineDuringDrag(clientX) {
+        if (!timelineDrag || timelineDrag.marquee) return;
+        const scroll = $("timelineScroll"); if (!scroll) return;
+        if (!Number.isFinite(timelineDrag.originScrollLeft)) timelineDrag.originScrollLeft = scroll.scrollLeft;
+        const rect = scroll.getBoundingClientRect(), edge = Math.min(88, Math.max(48, rect.width * 0.075));
+        let velocity = 0;
+        if (clientX < rect.left + edge) velocity = -Math.pow((rect.left + edge - clientX) / edge, 1.35) * 22;
+        else if (clientX > rect.right - edge) velocity = Math.pow((clientX - (rect.right - edge)) / edge, 1.35) * 22;
+        if (velocity) scroll.scrollLeft = Math.max(0, scroll.scrollLeft + velocity);
+      }
+      function beginTimelineGesture() {
+        if (!timelineGestureBefore) timelineGestureBefore = JSON.stringify(projectData());
+      }
+      function commitTimelineGesture() {
+        if (!timelineGestureBefore) return false;
+        const before = timelineGestureBefore; timelineGestureBefore = null;
+        if (JSON.stringify(projectData()) === before) return false;
+        state.undo.push(before); state.redo = [];
+        if (state.undo.length > 30) state.undo.shift();
+        queueAutosave(); return true;
+      }
+      function rollbackTimelineGesture() {
+        if (!timelineGestureBefore) return;
+        const before = timelineGestureBefore; timelineGestureBefore = null;
+        applyHistoryState(JSON.parse(before));
+      }
       document.addEventListener("pointermove", (e) => {
         if (editTool === "blade" && !timelineDrag && e.target.closest?.("#timelineMain"))
           setBladeGuide(previewBladeTime(e.clientX), true);
         if (timelineDrag?.pointer === e.pointerId) {
+          autoScrollTimelineDuringDrag(e.clientX);
           if (timelineDrag.marquee) {
             const rect = $("timelineContent").getBoundingClientRect();
             const x = e.clientX - rect.left,
@@ -18212,20 +18544,36 @@
         event.preventDefault();
         event.stopImmediatePropagation();
       }
+      let wheelZoomTarget = 60;
+      let wheelZoomFrame = 0;
+      let wheelZoomAnchorX = 0;
+      function scheduleFluidTimelineZoom(deltaPixels, clientX) {
+        wheelZoomTarget = clamp(wheelZoomTarget * Math.exp(-clamp(deltaPixels, -120, 120) * 0.0024), 1, 300);
+        wheelZoomAnchorX = clientX;
+        if (wheelZoomFrame) return;
+        wheelZoomFrame = requestAnimationFrame(() => {
+          wheelZoomFrame = 0;
+          const distance = wheelZoomTarget - Number(state.zoom || 60);
+          const next = Math.abs(distance) < 0.08 ? wheelZoomTarget : Number(state.zoom || 60) + distance * 0.72;
+          setTimelineZoomAroundPlayhead(next, wheelZoomAnchorX);
+          if (Math.abs(wheelZoomTarget - next) >= 0.08) scheduleFluidTimelineZoom(0, wheelZoomAnchorX);
+        });
+      }
       window.addEventListener(
         "wheel",
         (e) => {
-          const inTimeline = eventInTimelineZoomArea(e.target);
-          if (e.ctrlKey || e.metaKey) {
+          if (!eventInTimelineZoomArea(e.target)) return;
+          const deltaPixels = e.deltaMode === 1 ? Number(e.deltaY || 0) * 16 : e.deltaMode === 2 ? Number(e.deltaY || 0) * 120 : Number(e.deltaY || 0);
+          if (e.ctrlKey || e.metaKey || e.altKey) {
             preventBrowserPageZoom(e);
-            if (inTimeline)
-              setTimelineZoomAroundPlayhead(state.zoom * (e.deltaY > 0 ? 0.88 : 1.14));
+            if (!wheelZoomFrame && Math.abs(wheelZoomTarget - Number(state.zoom || 60)) > 0.2) wheelZoomTarget = Number(state.zoom || 60);
+            wheelZoomTarget = Number.isFinite(wheelZoomTarget) ? wheelZoomTarget : Number(state.zoom || 60);
+            scheduleFluidTimelineZoom(deltaPixels, e.clientX);
             return;
           }
-          if (e.altKey && inTimeline) {
+          if (e.shiftKey && $("timelineScroll")) {
             e.preventDefault();
-            e.stopImmediatePropagation();
-            setTimelineZoomAroundPlayhead(state.zoom * (e.deltaY > 0 ? 0.88 : 1.14));
+            $("timelineScroll").scrollLeft += Number(e.deltaY || e.deltaX || 0);
           }
         },
         { passive: false, capture: true },
@@ -19742,7 +20090,24 @@
           toggleSnapping();
           return;
         }
+        if (code === "KeyM" && !command && !textEditing) {
+          e.preventDefault();
+          if (e.altKey) deleteTimelineMarkerAtPlayhead();
+          else if (e.shiftKey) jumpTimelineMarker("next");
+          else addTimelineMarker();
+          return;
+        }
         if (textEditing) return;
+        if (code === "Comma" && !e.shiftKey && !command) {
+          e.preventDefault();
+          nudgeSelectedClips(-frameDuration());
+          return;
+        }
+        if (code === "Period" && !e.shiftKey && !command) {
+          e.preventDefault();
+          nudgeSelectedClips(frameDuration());
+          return;
+        }
         if (code === "Space") {
           e.preventDefault();
           togglePlay();
