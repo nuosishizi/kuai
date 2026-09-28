@@ -5,8 +5,9 @@ ROOT="${0:A:h:h}"
 MEDIA="$ROOT/Modules/EditorRuntime/media"
 LIB="$MEDIA/lib"
 BREW_PREFIX="$(brew --prefix)"
-BREW_FFMPEG="$BREW_PREFIX/bin/ffmpeg"
-BREW_FFPROBE="$BREW_PREFIX/bin/ffprobe"
+FFMPEG_PREFIX="$(brew --prefix ffmpeg-full)"
+BREW_FFMPEG="$FFMPEG_PREFIX/bin/ffmpeg"
+BREW_FFPROBE="$FFMPEG_PREFIX/bin/ffprobe"
 
 fail() {
   print -u2 "错误：$1"
@@ -25,6 +26,9 @@ fail() {
 
 typeset -a queue
 queue=("$MEDIA/ffmpeg" "$MEDIA/ffprobe")
+typeset -A origins
+origins[$MEDIA/ffmpeg]="$BREW_FFMPEG"
+origins[$MEDIA/ffprobe]="$BREW_FFPROBE"
 
 is_system_library() {
   [[ "$1" == /System/* || "$1" == /usr/lib/* ]]
@@ -39,9 +43,16 @@ while (( ${#queue[@]} )); do
     is_system_library "$dependency" && continue
     original_dependency="$dependency"
     if [[ "$dependency" == @rpath/* ]]; then
-      dependency="$BREW_PREFIX/lib/${dependency:t}"
+      name="${dependency:t}"
+      dependency="$BREW_PREFIX/lib/$name"
+      if [[ ! -f "$dependency" ]]; then
+        dependency="${origins[$current]:h}/$name"
+      fi
+      if [[ ! -f "$dependency" ]]; then
+        dependency="$FFMPEG_PREFIX/lib/$name"
+      fi
     elif [[ "$dependency" == @loader_path/* ]]; then
-      dependency="${current:h}/${dependency#@loader_path/}"
+      dependency="${origins[$current]:h}/${dependency#@loader_path/}"
     fi
     [[ -f "$dependency" ]] || fail "找不到动态库：$original_dependency"
 
@@ -50,6 +61,7 @@ while (( ${#queue[@]} )); do
     if [[ ! -e "$destination" ]]; then
       /bin/cp -L "$dependency" "$destination"
       /bin/chmod u+w "$destination"
+      origins[$destination]="$dependency"
       queue+=("$destination")
     fi
 

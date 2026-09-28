@@ -10,8 +10,8 @@ enum QuickCutCaptionRasterizer {
         let height: Int
     }
 
-    static func render(spec: NativeCaptionRenderSpec, maxWidth: CGFloat, activeWordIndex: Int = -1) -> Result? {
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
+    static func render(spec: NativeCaptionRenderSpec, maxWidth: CGFloat, activeWordIndex: Int = -1, backingScale: CGFloat? = nil) -> Result? {
+        let scale = max(1, backingScale ?? NSScreen.main?.backingScaleFactor ?? 2)
         let layout = QuickCutTextLayoutSpec(
             fontFamily: spec.fontFamily,
             fontSize: spec.fontSize,
@@ -194,8 +194,8 @@ enum QuickCutCaptionRasterizer {
                     "outputPath": output,
                     "width": rendered.width,
                     "height": rendered.height,
-                    "logicalWidth": CGFloat(rendered.width) / (NSScreen.main?.backingScaleFactor ?? 2),
-                    "logicalHeight": CGFloat(rendered.height) / (NSScreen.main?.backingScaleFactor ?? 2),
+                    "logicalWidth": rendered.width,
+                    "logicalHeight": rendered.height,
                 ])
             }
             let resultData = try JSONSerialization.data(withJSONObject: ["results": results], options: [])

@@ -49,7 +49,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          brew list ffmpeg-full >/dev/null 2>&1 || brew install ffmpeg-full
           # The package script runs zsh scripts/bundle-media-deps.sh on this architecture.
       - name: Build and verify Windows packages
         if: runner.os == 'Windows'
