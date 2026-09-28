@@ -4,15 +4,16 @@ set -euo pipefail
 ROOT="${0:A:h:h}"
 MEDIA="$ROOT/Modules/EditorRuntime/media"
 LIB="$MEDIA/lib"
-BREW_FFMPEG="/opt/homebrew/bin/ffmpeg"
-BREW_FFPROBE="/opt/homebrew/bin/ffprobe"
+BREW_PREFIX="$(brew --prefix)"
+BREW_FFMPEG="$BREW_PREFIX/bin/ffmpeg"
+BREW_FFPROBE="$BREW_PREFIX/bin/ffprobe"
 
 fail() {
   print -u2 "错误：$1"
   exit 1
 }
 
-[[ "$(uname -m)" == arm64 ]] || fail "目前只支持 Apple 芯片 Mac。"
+[[ "$(uname -s)" == Darwin ]] || fail "请在 macOS 上打包。"
 [[ -x "$BREW_FFMPEG" && -x "$BREW_FFPROBE" ]] || fail "没有找到 Homebrew 安装的 FFmpeg。"
 
 /bin/mkdir -p "$MEDIA"
@@ -38,7 +39,7 @@ while (( ${#queue[@]} )); do
     is_system_library "$dependency" && continue
     original_dependency="$dependency"
     if [[ "$dependency" == @rpath/* ]]; then
-      dependency="/opt/homebrew/lib/${dependency:t}"
+      dependency="$BREW_PREFIX/lib/${dependency:t}"
     elif [[ "$dependency" == @loader_path/* ]]; then
       dependency="${current:h}/${dependency#@loader_path/}"
     fi

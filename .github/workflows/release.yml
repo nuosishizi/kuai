@@ -1,90 +1,109 @@
-name: Build and Release
+name: Verified desktop packages
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Unique release tag (existing releases are never overwritten)
+        required: true
+        default: v2.7.53-build.1
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            script: ./pack-windows.ps1
-          - os: macos-latest
-            script: ./pack-macos.ps1
+          - os: windows-2022
+            name: Windows-x64
+          - os: macos-15
+            name: macOS-arm64
+          - os: macos-15-intel
+            name: macOS-x64
     runs-on: ${{ matrix.os }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-
-      - name: Setup Inno Setup and FFmpeg (Windows)
+          node-version: 22.18.0
+      - name: Packaging regression tests
+        run: node --test Modules/EditorRuntime/editor-desktop/tests/startup-package.test.mjs
+      - name: Install Windows installer compiler
         if: runner.os == 'Windows'
-        run: choco install innosetup ffmpeg -y --no-progress
-
-      - name: Setup FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install ffmpeg
-          zsh scripts/bundle-media-deps.sh
-
-      - name: Setup Bun (macOS)
-        if: runner.os == 'macOS'
-        uses: oven-sh/setup-bun@v2
-
-      - name: Run Test Suite
         shell: pwsh
         run: |
-          cd Modules/EditorRuntime/editor-desktop
-          npm test
-
-      - name: Package Application
+          if (-not (Test-Path 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe')) {
+            choco install innosetup --version=6.4.3 -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+          }
+      - name: Install macOS media dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          # The package script runs zsh scripts/bundle-media-deps.sh on this architecture.
+      - name: Build and verify Windows packages
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "dist" | Out-Null
-          pwsh -ExecutionPolicy Bypass -File ${{ matrix.script }} -OutDir dist
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+          ./pack-windows.ps1 -OutDir dist
+          $version = (Get-Content Modules/EditorRuntime/editor-desktop/package.json -Raw | ConvertFrom-Json).version
+          $extract = Join-Path $env:RUNNER_TEMP 'QuickCut extracted 中文'
+          Expand-Archive -LiteralPath "dist/QuickCut-Windows-$version-Portable.zip" -DestinationPath $extract
+          node scripts/verify-package.mjs (Join-Path $extract "QuickCut-Windows-$version")
+          if ($LASTEXITCODE -ne 0) { throw 'Extracted portable verification failed' }
+          $install = Join-Path $env:RUNNER_TEMP 'QuickCut installed 中文'
+          $setup = (Resolve-Path "dist/QuickCut-Windows-$version-Setup.exe").Path
+          $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$install`"") -Wait -PassThru -WindowStyle Hidden
+          if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
+          node scripts/verify-package.mjs $install
+          if ($LASTEXITCODE -ne 0) { throw 'Installed application verification failed' }
+          ./scripts/verify-windows-launcher.ps1 -AppDir $install
+      - name: Build and verify native macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash scripts/package-macos.sh dist
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-artifacts
-          path: dist/*
+          name: ${{ matrix.name }}
+          path: |
+            dist/QuickCut-*.zip
+            dist/QuickCut-*.exe
+            dist/QuickCut-*.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
-      id-token: write
       contents: write
-      attestations: write
-
     steps:
-      - name: Checkout release notes
-        uses: actions/checkout@v4
-
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
-
-      - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: 'dist/*'
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*
-          body_path: RELEASE_NOTES.md
-          generate_release_notes: true
+      - name: Publish verified packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-build\.[0-9]+$ ]]
+          cp docs/PACKAGE-README.md dist/READ-ME.md
+          (cd dist; sha256sum QuickCut-* > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" dist/* --target "$GITHUB_SHA" \
+            --title "QuickCut $RELEASE_TAG · Windows + Apple Silicon + Intel" \
+            --notes-file docs/PACKAGE-README.md

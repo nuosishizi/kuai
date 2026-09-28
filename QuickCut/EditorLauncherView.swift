@@ -23,7 +23,9 @@ final class EditorHostModel: ObservableObject {
             return
         }
         let runtime = resources.appendingPathComponent("EditorRuntime", isDirectory: true)
-        let bun = runtime.appendingPathComponent("runtime/bun-arm64")
+        let node = runtime.appendingPathComponent("runtime/node")
+        let bun = FileManager.default.isExecutableFile(atPath: node.path)
+            ? node : runtime.appendingPathComponent("runtime/bun-arm64")
         let script = runtime.appendingPathComponent("editor-desktop/src/main.mjs")
         let media = runtime.appendingPathComponent("media", isDirectory: true)
 

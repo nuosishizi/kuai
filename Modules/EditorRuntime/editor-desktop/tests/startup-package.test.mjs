@@ -59,6 +59,7 @@ test("macOS build paths collect, rewrite, copy and sign portable FFmpeg dependen
   const bundleScript = fs.readFileSync(path.join(contentsRoot, "scripts", "bundle-media-deps.sh"), "utf8");
   const appBuilder = fs.readFileSync(path.join(contentsRoot, "一键生成APP.command"), "utf8");
   const packScript = fs.readFileSync(path.join(contentsRoot, "pack-macos.ps1"), "utf8");
+  const nativePack = fs.readFileSync(path.join(contentsRoot, "scripts", "package-macos.sh"), "utf8");
   const workflow = fs.readFileSync(path.join(contentsRoot, ".github", "workflows", "release.yml"), "utf8");
 
   assert.match(bundleScript, /otool -L/);
@@ -69,8 +70,11 @@ test("macOS build paths collect, rewrite, copy and sign portable FFmpeg dependen
   assert.match(appBuilder, /RUNTIME_SRC\/media\/lib/);
   assert.match(appBuilder, /RUNTIME_DST\/media\/lib/);
   assert.match(packScript, /bundle-media-deps\.sh/);
-  assert.match(packScript, /Copy-Item -Recurse -Force \$MediaLib/);
-  assert.match(packScript, /Get-ChildItem -LiteralPath \$ffmpegLibDir/);
+  assert.match(packScript, /LASTEXITCODE -ne 0/);
+  assert.match(nativePack, /ditto Modules\/EditorRuntime\/media\/lib/);
+  assert.match(nativePack, /codesign --verify --deep --strict/);
+  assert.match(nativePack, /ditto -c -k --sequesterRsrc --keepParent/);
+  assert.match(nativePack, /node scripts\/verify-package\.mjs/);
   assert.match(workflow, /zsh scripts\/bundle-media-deps\.sh/);
 });
 

@@ -67,6 +67,7 @@ Info "Pre-building editor UI bundle..."
 $BuildScript = Join-Path $EditorSrc "src\ui\build.mjs"
 if (Test-Path $BuildScript) {
   & node $BuildScript
+  if ($LASTEXITCODE -ne 0) { Fail "Editor UI build failed." }
 }
 
 Info "Copying editor..."
@@ -145,6 +146,12 @@ if (Test-Path $LocalMedia) {
 Info "Preparing portable Node.js $NodeVersion..."
 $NodeZip = Join-Path $Cache $NodeZipName
 Download-File $NodeUrl $NodeZip
+$NodeChecksums = Join-Path $Cache "node-v$NodeVersion-SHASUMS256.txt"
+Download-File "https://nodejs.org/dist/v$NodeVersion/SHASUMS256.txt" $NodeChecksums
+$ChecksumLine = Get-Content -LiteralPath $NodeChecksums | Where-Object { $_ -match ([regex]::Escape($NodeZipName) + '$') }
+if (-not $ChecksumLine) { Fail "Node.js archive checksum is missing." }
+$ExpectedHash = ($ChecksumLine -split '\s+')[0]
+if ((Get-FileHash -LiteralPath $NodeZip -Algorithm SHA256).Hash -ne $ExpectedHash) { Fail "Node.js archive checksum mismatch." }
 $NodeExtract = Join-Path $Cache "node-v$NodeVersion-win-x64"
 if (-not (Test-Path (Join-Path $NodeExtract "node.exe"))) {
   if (Test-Path $NodeExtract) { Remove-Item -Recurse -Force $NodeExtract }
@@ -159,6 +166,7 @@ Get-ChildItem $NodeExtract -File -Filter "*.dll" | ForEach-Object {
 
 $Launcher = @"
 @echo off
+chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 title QuickCut $Version
@@ -184,7 +192,7 @@ if errorlevel 1 (
 )
 endlocal
 "@
-Set-Content -Path (Join-Path $Stage "启动快剪.bat") -Value $Launcher -Encoding OEM
+Set-Content -Path (Join-Path $Stage "启动快剪.bat") -Value $Launcher -Encoding utf8NoBOM
 
 $Readme = @"
 快剪 QuickCut $Version  Windows 运行说明
@@ -258,9 +266,14 @@ namespace QuickCutLauncher {
                 }
 
                 // Monitor initial 2.5 seconds to detect immediate startup crash
+                // Drain stderr while the child runs; never leave a pipe unread.
+                var errors = new System.Text.StringBuilder();
+                proc.ErrorDataReceived += (sender, e) => { if (e.Data != null) { lock (errors) { errors.AppendLine(e.Data); } } };
+                proc.BeginErrorReadLine();
                 bool exitedEarly = proc.WaitForExit(2500);
                 if (exitedEarly && proc.ExitCode != 0) {
-                    string errorOut = proc.StandardError.ReadToEnd();
+                    proc.WaitForExit();
+                    string errorOut = errors.ToString();
                     string msg = "快剪后台服务启动异常 (退出码 " + proc.ExitCode + ")。\n\n" +
                                  (string.IsNullOrEmpty(errorOut) ? "请双击运行「启动快剪.bat」查看控制台详细报错。" : errorOut);
                     DialogResult result = MessageBox.Show(msg + "\n\n是否立即以命令行诊断模式启动？", "快剪 QuickCut", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
@@ -271,6 +284,7 @@ namespace QuickCutLauncher {
                         }
                     }
                 }
+                if (!exitedEarly) { proc.WaitForExit(); }
             } catch (Exception ex) {
                 MessageBox.Show("启动快剪遇到异常: " + ex.Message, "快剪 QuickCut", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -287,12 +301,14 @@ if (Test-Path $cscPath) {
   $tempCs = Join-Path $StageRoot "Launcher.cs"
   Set-Content -Path $tempCs -Value $launcherCode -Encoding UTF8
   & $cscPath /nologo /target:winexe /out:"$launcherExe" /reference:System.Windows.Forms.dll "$tempCs"
+  if ($LASTEXITCODE -ne 0) { Fail "Windows launcher compilation failed." }
   Remove-Item -Force $tempCs -ErrorAction SilentlyContinue
 } else {
   try {
     Add-Type -TypeDefinition $launcherCode -Language CSharp -OutputAssembly $launcherExe -OutputType WindowsApplication -ReferencedAssemblies "System.Windows.Forms.dll"
-  } catch {}
+  } catch { Fail "Windows launcher compilation failed: $_" }
 }
+if (-not (Test-Path -LiteralPath $launcherExe)) { Fail "Native Windows launcher is missing." }
 
 # Build Inno Setup Installer if compiler is present
 $isccCmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
@@ -310,6 +326,7 @@ if ($iscc) {
   Info "Building Inno Setup Windows installer with $iscc..."
   $issFile = Join-Path $ProjectRoot "installer.iss"
   & $iscc "/DMyAppVersion=$Version" "/DSourceDir=$Stage" "/O$TargetDir" $issFile
+  if ($LASTEXITCODE -ne 0) { Fail "Windows installer compilation failed." }
   if ($LASTEXITCODE -eq 0) {
     $setupExe = Join-Path $TargetDir "QuickCut-Windows-$Version-Setup.exe"
     $chineseExe = Join-Path $TargetDir "快剪-Windows-$Version-安装包.exe"
@@ -320,6 +337,7 @@ if ($iscc) {
     }
   }
 }
+if ($env:CI -and -not $iscc) { Fail "Inno Setup is required for release builds." }
 
 if (Test-Path $ZipPath) { Remove-Item -Force $ZipPath }
 Info "Creating $ZipPath"
